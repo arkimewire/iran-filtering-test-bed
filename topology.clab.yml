@@ -1,0 +1,125 @@
+name: iran-filtering
+
+topology:
+  nodes:
+    # 1. The User inside Iran
+    iran-client:
+      kind: linux
+      image: iran-sim:latest
+      exec:
+        - ip addr add 10.0.1.2/24 dev eth1
+        - ip route replace default via 10.0.1.1
+        # - bash -c 'printf "nameserver 8.8.8.8\noptions use-vc\n" > /etc/resolv.conf'    # In macos OrbStack docker engine TCP DNS is not working correctly, so we set options use-vc to force dnsmasq to use TCP for DNS queries, which is more reliable in this environment.
+        # - bash -c 'echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf'                # in macos OrbStack docker engine IPv6 didn't work correctly during DNS resolution, so we set precedence for IPv4 to make it more likely to use IPv4 for DNS queries, which is more reliable in case of orbstack docker engine on macos.
+
+    # 2. Local ISP (e.g., Irancell, Shuttle)
+    # Role: DNS Filtering, local routing
+    iran-isp:
+      kind: linux
+      image: iran-sim:latest
+      labels:
+        containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
+      binds:
+        - config/isp/dnsmasq.conf:/etc/dnsmasq.conf:ro
+        - config/isp/blocklist.conf:/etc/dnsmasq.d/blocklist.conf:ro
+        - config/isp/nftables.conf:/etc/nftables.conf:ro
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.0.1.1/24 dev eth1 # Towards Client
+        - ip addr add 10.0.2.2/24 dev eth2 # Towards IXP
+        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip addr add 10.0.4.1/24 dev eth3; fi' # Towards Mobile
+        - ip route replace default via 10.0.2.1
+        - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
+        - nft -f /etc/nftables.conf
+
+    # 3. Iran IXP (Peering Point)
+    # Role: Interconnects ISPs and Backbone. The "Kill Switch" point.
+    iran-ixp:
+      kind: linux
+      image: iran-sim:latest
+      labels:
+        containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.0.2.1/24 dev eth1 # Towards ISP
+        - ip addr add 10.0.3.2/24 dev eth2 # Towards Backbone
+        - ip addr add 10.10.10.1/24 dev eth3 # Towards Intranet
+        - ip route replace 10.0.1.0/24 via 10.0.2.2 # Route back to client
+        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip route replace 10.0.4.0/24 via 10.0.2.2; fi' # Route back to mobile
+        - ip route replace default via 10.0.3.1
+
+    # 4. Iran Backbone (TIC / GFW Layer)
+    # Role: SNI filtering, DPI, IP blocking, Protocol interference
+    iran-backbone:
+      kind: linux
+      image: iran-sim:latest
+      labels:
+        containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
+      binds:
+        - config/backbone/dnsmasq.conf:/etc/dnsmasq.conf:ro
+        - config/backbone/nftables.conf:/etc/nftables.conf:ro
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.0.3.1/24 dev eth1 # Towards IXP
+        - ip addr add 203.0.113.1/24 dev eth2 # Towards Internet
+        - ip route replace 10.0.2.0/24 via 10.0.3.2
+        - ip route replace 10.0.1.0/24 via 10.0.3.2
+        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip route replace 10.0.4.0/24 via 10.0.3.2; fi'
+        - nft -f /etc/nftables.conf
+        - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
+
+    # 5. Global Internet Server
+    internet-srv:
+      kind: linux
+      image: iran-sim:latest
+      exec:
+        - ip addr add 203.0.113.2/24 dev eth1
+        - ip addr add 203.0.113.10/24 dev eth1   # ip_reputation blacklist
+        - ip addr add 203.0.113.50/24 dev eth1   # ip_reputation graylist
+        - ip addr add 203.0.113.100/24 dev eth1  # probed_ips (VMess)
+        - ip addr add 203.0.113.101/24 dev eth1  # probed_ips (Shadowsocks)
+        - ip route replace default via 203.0.113.1
+
+    # 6. Iran Intranet Server (National Network)
+    iran-intranet:
+      kind: linux
+      image: iran-sim:latest
+      exec:
+        - ip addr add 10.10.10.2/24 dev eth1
+        - ip route replace default via 10.10.10.1
+
+    # ── 7. Android Mobile User (conditional) ───────────────────────────
+    iran-mobile:
+      kind: linux
+      image: redroid/redroid:14.0.0-latest
+      labels:
+        containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
+      cmd: sh -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then sleep 5; exec /init.sh androidboot.use_memfd=1; else exec sleep infinity; fi'
+      ports:
+        - "5555:5555"
+      binds:
+        - config/mobile/EthernetOverlayReproducible.apk:/product/overlay/EthernetOverlay.apk:ro
+      stages:
+        configure:
+          exec:
+            - command: bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ./scripts/setup-mobile-net.sh; fi'
+              target: host
+              phase: on-exit
+
+    # ── 8. Web scrcpy (conditional) ────────────────────────────────────
+    scrcpy-web:
+      kind: linux
+      image: shmayro/scrcpy-web:latest
+      labels:
+        containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
+      cmd: sh -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then sleep 30; adb connect clab-iran-filtering-iran-mobile:5555 && npm start; else exec sleep infinity; fi'
+      ports:
+        - "8000:8000"
+
+  links:
+    - endpoints: ["iran-client:eth1", "iran-isp:eth1"]
+    - endpoints: ["iran-isp:eth2", "iran-ixp:eth1"]
+    - endpoints: ["iran-ixp:eth2", "iran-backbone:eth1"]
+    - endpoints: ["iran-backbone:eth2", "internet-srv:eth1"]
+    - endpoints: ["iran-ixp:eth3", "iran-intranet:eth1"]
+    - endpoints: ["iran-mobile:eth1", "iran-isp:eth3"]

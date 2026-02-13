@@ -1,0 +1,74 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/go
+{
+	"name": "iran-filtering-test-bed",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"_CLAB_VERSION": "0.73.0"
+		}
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:latest": {},
+		"ghcr.io/devcontainers/features/go:latest": {},
+		"ghcr.io/guiyomh/features/golangci-lint:latest": {},
+		"ghcr.io/guiyomh/features/goreleaser:latest": {},
+		"ghcr.io/guiyomh/features/gotestsum:latest": {},
+		"ghcr.io/guiyomh/features/pact-go:latest": {},
+		"ghcr.io/azutake/devcontainer-features/go-packages-install:latest": {}
+	},
+	"runArgs": ["--privileged"],
+	"privileged": true,
+
+	"customizations": {
+		"cursor": {
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"tuxtina.json2yaml",
+				"vscode-icons-team.vscode-icons",
+				"mutantdino.resourcemonitor",
+				"ms-vscode.cpptools-extension-pack",
+				"ms-vscode.cpptools",
+				"ms-vscode.cpptools-themes",
+				"EthanSK.restore-terminals"
+			]
+		},
+		"vscode": {
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"tuxtina.json2yaml",
+				"vscode-icons-team.vscode-icons",
+				"mutantdino.resourcemonitor",
+				"ms-vscode.cpptools-extension-pack",
+				"ms-vscode.cpptools",
+				"ms-vscode.cpptools-themes",
+				"EthanSK.restore-terminals"
+			]
+		}
+	},
+	"mounts": [
+		"source=clab-vscode-home-dir,target=/home/vscode,type=volume",
+		"source=clab-docker-root-config,target=/root/.docker,type=volume",
+		"source=${localEnv:HOME}/.gemini,target=/root/.gemini,type=bind",
+		"source=${localEnv:HOME}/.factory,target=/root/.factory,type=bind",
+		"source=/sys/kernel/debug,target=/sys/kernel/debug,type=bind",
+		"source=/sys/fs/bpf,target=/sys/fs/bpf,type=bind"
+	],
+
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [5001, 8070],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postStartCommand": "if [ ! -f ~/.first_run_done ]; then echo '' > ~/.bash_history && touch ~/.first_run_done; fi"
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}

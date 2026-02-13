@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Configure eth1 as a static Ethernet interface for the iran-mobile (redroid) node.
+        This overlay targets Android's ServiceConnectivityResources package.
+
+        Format: "iface;capabilities;ip_config"
+          - iface: interface name
+          - capabilities: comma-separated NetworkCapabilities constants
+              11 = NOT_METERED
+              12 = INTERNET
+              13 = NOT_RESTRICTED
+              14 = TRUSTED
+              15 = NOT_VPN
+          - ip_config: static IP assignment parameters
+
+        To change the network config, edit the <item> below and rebuild with:
+            ./config/mobile/build-overlay.sh
+    -->
+    <string-array translatable="false" name="config_ethernet_interfaces">
+        <item>eth1;11,12,13,14,15;ip=10.0.4.2/24 gateway=10.0.4.1 dns=8.8.8.8</item>
+    </string-array>
+</resources>

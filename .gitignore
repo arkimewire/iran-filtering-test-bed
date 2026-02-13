@@ -1,0 +1,12 @@
+# Containerlab artifacts
+clab-iran-filtering/
+clab-iran-filtering/**
+.clab/
+*.log
+
+# System / IDE files
+.DS_Store
+.idea/
+
+# OS specific
+Thumbs.db

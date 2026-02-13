@@ -1,0 +1,92 @@
+{
+  "freeTextAnnotations": [],
+  "freeShapeAnnotations": [],
+  "groupStyleAnnotations": [
+    {
+      "id": "group-2",
+      "name": "backbone",
+      "level": "1",
+      "position": {
+        "x": 235.45230680748764,
+        "y": -28.451474877200305
+      },
+      "width": 78.54912676930786,
+      "height": 385.80349292276856,
+      "backgroundColor": "#d9d9d9",
+      "backgroundOpacity": 20,
+      "borderColor": "#dddddd",
+      "borderWidth": 0.5,
+      "borderStyle": "solid",
+      "borderRadius": 0,
+      "labelColor": "#ebecf0",
+      "labelPosition": "top-center",
+      "zIndex": 2,
+      "geoCoordinates": {
+        "lat": 48.73264183365643,
+        "lng": 8.802306811315617
+      }
+    }
+  ],
+  "networkNodeAnnotations": [],
+  "nodeAnnotations": [
+    {
+      "id": "internet-srv",
+      "position": {
+        "x": -120,
+        "y": -340
+      }
+    },
+    {
+      "id": "iran-backbone",
+      "position": {
+        "x": -120,
+        "y": -240
+      }
+    },
+    {
+      "id": "iran-intranet",
+      "position": {
+        "x": -400,
+        "y": -140
+      }
+    },
+    {
+      "id": "iran-ixp",
+      "position": {
+        "x": -120,
+        "y": -140
+      }
+    },
+    {
+      "id": "iran-isp",
+      "position": {
+        "x": -133,
+        "y": -21
+      }
+    },
+    {
+      "id": "iran-client",
+      "position": {
+        "x": -180,
+        "y": 140
+      }
+    },
+    {
+      "id": "scrcpy-web",
+      "position": {
+        "x": -360,
+        "y": 140
+      }
+    },
+    {
+      "id": "iran-mobile",
+      "position": {
+        "x": -80,
+        "y": 140
+      }
+    }
+  ],
+  "edgeAnnotations": [],
+  "aliasEndpointAnnotations": [],
+  "viewerSettings": {}
+}
