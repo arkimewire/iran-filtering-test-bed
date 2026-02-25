@@ -1,0 +1,624 @@
+name: iran-realistic
+
+# Realistic topology modeling Iran's actual internet architecture.
+# Based on cross-referenced research from 21+ independent sources including
+# FilterWatch, Kentik, PeeringDB, bgp.tools, IODA, and academic papers.
+#
+# All nodes use kind: linux with iran-sim:latest for lightweight operation
+# and full nftables/iptables/tc compatibility.
+#
+# Gateway placement reflects physical cable geography:
+#   gw-falcon -> tic-south  (FALCON submarine cable lands at Bandar Abbas, southern coast)
+#   gw-epeg   -> tic-west   (EPEG terrestrial cable enters from Turkey/Azerbaijan, northwest border near Tabriz)
+#
+# Four TIC backbone regions forming a mesh:
+#   tic-tehran  -- Central hub, main DPI/filtering, no direct int'l gateway
+#   tic-south   -- Southern Iran (Isfahan, Shiraz, Bandar Abbas), FALCON gateway
+#   tic-west    -- Northwestern Iran (Tabriz, Urmia), EPEG gateway
+#   tic-east    -- Northeastern Iran (Mashhad), no direct int'l gateway
+#
+# Each region has: TIC backbone -> regional IXP -> TCI wholesale -> ISPs -> clients
+#
+# IP addressing scheme:
+#   10.1.x.0/24  -- international gateway links
+#   10.2.x.0/24  -- backbone mesh links
+#   10.3.x.0/24  -- IXP links (backbone <-> IXP, IXP <-> TCI)
+#   10.4.x.0/24  -- wholesale <-> ISP/mobile links
+#   10.0.1.0/24  -- Tehran client subnet (preserved from simple topology)
+#   10.5.x.0/24  -- regional client subnets
+#   10.10.10.0/24 -- NIN (preserved from simple topology)
+#   203.0.113.0/24 -- simulated internet
+#
+# Key addresses preserved from simple topology:
+#   client-tehran: 10.0.1.2, isp-shatel: 10.0.1.1, internet-srv: 203.0.113.2, iran-nin: 10.10.10.2
+#
+# Deploy: clab deploy -t topology-realistic.clab.yml
+# Destroy: clab destroy -t topology-realistic.clab.yml
+
+topology:
+  nodes:
+
+    # ══════════════════════════════════════════════════════════════════
+    # INTERNATIONAL LAYER
+    # ══════════════════════════════════════════════════════════════════
+
+    internet-srv:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward gw-falcon  (link 1)
+      # eth2: toward gw-epeg    (link 2)
+      exec:
+        - ip addr add 203.0.113.2/24 dev eth1
+        - ip addr add 203.0.113.2/24 dev eth2
+        - ip addr add 203.0.113.10/24 dev eth1   # ip_reputation blacklist
+        - ip addr add 203.0.113.50/24 dev eth1   # ip_reputation graylist
+        - ip addr add 203.0.113.100/24 dev eth1  # probed_ips (VMess)
+        - ip addr add 203.0.113.101/24 dev eth1  # probed_ips (Shadowsocks)
+        - ip addr add 203.0.113.1/24 dev eth1    # ip_reputation whitelist
+        - ip addr add 172.66.0.227/32 dev lo      # blocklist.conf (Cloudflare IP)
+        - ip route replace default via 203.0.113.11
+
+    # ══════════════════════════════════════════════════════════════════
+    # BORDER GATEWAYS
+    # ══════════════════════════════════════════════════════════════════
+
+    # FALCON submarine cable (Indian Ocean -> Bandar Abbas, southern coast)
+    gw-falcon:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward internet-srv  (link 1)
+      # eth2: toward tic-south     (link 3)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 203.0.113.11/24 dev eth1
+        - ip addr add 10.1.1.1/24 dev eth2
+        - ip route replace default via 203.0.113.2
+        - ip route replace 10.0.0.0/8 via 10.1.1.2
+        - ip route replace 172.66.0.0/24 via 203.0.113.2
+
+    # EPEG terrestrial cable (Turkey/Azerbaijan -> Tabriz, northwest border)
+    gw-epeg:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward internet-srv  (link 2)
+      # eth2: toward tic-west      (link 4)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 203.0.113.12/24 dev eth1
+        - ip addr add 10.1.2.1/24 dev eth2
+        - ip route replace default via 203.0.113.2
+        - ip route replace 10.0.0.0/8 via 10.1.2.2
+        - ip route replace 172.66.0.0/24 via 203.0.113.2
+
+    # ══════════════════════════════════════════════════════════════════
+    # TIC BACKBONE MESH (AS49666)
+    # ══════════════════════════════════════════════════════════════════
+
+    # ── TIC TEHRAN ── Central hub, main DPI/filtering, no direct int'l gateway
+    # CEO: Behzad Akbari Nodouzaghi (FilterWatch Feb 2026)
+    tic-tehran:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-south     (link 5)
+      # eth2: toward tic-west      (link 6)
+      # eth3: toward tic-east      (link 7)
+      # eth4: toward tehran-ix     (link 8)
+      # eth5: toward ipm-academic  (link 9)
+      binds:
+        - config-realistic/tic-tehran/dnsmasq.conf:/etc/dnsmasq.conf:ro
+        - config-realistic/tic-tehran/nftables.conf:/etc/nftables.conf:ro
+        - config/backbone/sni_blocklist.conf:/etc/gfw/sni_blocklist.conf:ro
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.2.1.1/24 dev eth1
+        - ip addr add 10.2.2.1/24 dev eth2
+        - ip addr add 10.2.3.1/24 dev eth3
+        - ip addr add 10.3.1.1/24 dev eth4
+        - ip addr add 10.2.4.1/24 dev eth5
+        # Default route: Docker bridge (eth0) for real internet
+        # Simulated internet: via tic-south (primary/FALCON), tic-west (backup/EPEG)
+        - ip route replace 203.0.113.0/24 via 10.2.1.2
+        - ip route add 203.0.113.0/24 via 10.2.2.2 metric 100
+        - ip route replace 172.66.0.0/24 via 10.2.1.2
+        # Tehran downstream via tehran-ix
+        - ip route replace 10.3.2.0/24 via 10.3.1.2
+        - ip route replace 10.4.1.0/24 via 10.3.1.2
+        - ip route replace 10.4.2.0/24 via 10.3.1.2
+        - ip route replace 10.0.1.0/24 via 10.3.1.2
+        - ip route replace 10.10.10.0/24 via 10.3.1.2
+        # South downstream via tic-south
+        - ip route replace 10.3.3.0/24 via 10.2.1.2
+        - ip route replace 10.4.3.0/24 via 10.2.1.2
+        - ip route replace 10.4.5.0/24 via 10.2.1.2
+        - ip route replace 10.5.1.0/24 via 10.2.1.2
+        - ip route replace 10.5.3.0/24 via 10.2.1.2
+        # West downstream via tic-west
+        - ip route replace 10.3.4.0/24 via 10.2.2.2
+        - ip route replace 10.4.6.0/24 via 10.2.2.2
+        - ip route replace 10.4.7.0/24 via 10.2.2.2
+        - ip route replace 10.5.4.0/24 via 10.2.2.2
+        # East downstream via tic-east
+        - ip route replace 10.3.5.0/24 via 10.2.3.2
+        - ip route replace 10.4.8.0/24 via 10.2.3.2
+        - ip route replace 10.4.4.0/24 via 10.2.3.2
+        - ip route replace 10.5.5.0/24 via 10.2.3.2
+        # NAT + configs
+        - nft -f /etc/nftables.conf
+        - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
+
+    # ── TIC SOUTH ── FALCON gateway region (Bandar Abbas, Isfahan, Shiraz)
+    tic-south:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward gw-falcon     (link 3)
+      # eth2: toward tic-tehran    (link 5)
+      # eth3: toward isfahan-ix    (link 10)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.1.1.2/24 dev eth1
+        - ip addr add 10.2.1.2/24 dev eth2
+        - ip addr add 10.3.3.1/24 dev eth3
+        # International: via gw-falcon
+        - ip route replace 203.0.113.0/24 via 10.1.1.1
+        - ip route replace 172.66.0.0/24 via 10.1.1.1
+        # Cross-region domestic: via tic-tehran
+        - ip route replace 10.2.0.0/16 via 10.2.1.1
+        - ip route replace 10.3.1.0/24 via 10.2.1.1
+        - ip route replace 10.3.2.0/24 via 10.2.1.1
+        - ip route replace 10.3.4.0/24 via 10.2.1.1
+        - ip route replace 10.3.5.0/24 via 10.2.1.1
+        - ip route replace 10.4.1.0/24 via 10.2.1.1
+        - ip route replace 10.4.2.0/24 via 10.2.1.1
+        - ip route replace 10.4.6.0/24 via 10.2.1.1
+        - ip route replace 10.4.7.0/24 via 10.2.1.1
+        - ip route replace 10.4.8.0/24 via 10.2.1.1
+        - ip route replace 10.4.4.0/24 via 10.2.1.1
+        - ip route replace 10.0.1.0/24 via 10.2.1.1
+        - ip route replace 10.10.10.0/24 via 10.2.1.1
+        - ip route replace 10.5.4.0/24 via 10.2.1.1
+        - ip route replace 10.5.5.0/24 via 10.2.1.1
+        # Local downstream via isfahan-ix
+        - ip route replace 10.3.3.0/24 via 10.3.3.2
+        - ip route replace 10.4.3.0/24 via 10.3.3.2
+        - ip route replace 10.4.5.0/24 via 10.3.3.2
+        - ip route replace 10.5.1.0/24 via 10.3.3.2
+        - ip route replace 10.5.3.0/24 via 10.3.3.2
+
+    # ── TIC WEST ── EPEG gateway region (Tabriz, Urmia, Turkey/Azerbaijan border)
+    tic-west:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward gw-epeg       (link 4)
+      # eth2: toward tic-tehran    (link 6)
+      # eth3: toward tabriz-ix     (link 11)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.1.2.2/24 dev eth1
+        - ip addr add 10.2.2.2/24 dev eth2
+        - ip addr add 10.3.4.1/24 dev eth3
+        # International: via gw-epeg
+        - ip route replace 203.0.113.0/24 via 10.1.2.1
+        - ip route replace 172.66.0.0/24 via 10.1.2.1
+        # Cross-region domestic: via tic-tehran
+        - ip route replace 10.2.0.0/16 via 10.2.2.1
+        - ip route replace 10.3.1.0/24 via 10.2.2.1
+        - ip route replace 10.3.2.0/24 via 10.2.2.1
+        - ip route replace 10.3.3.0/24 via 10.2.2.1
+        - ip route replace 10.3.5.0/24 via 10.2.2.1
+        - ip route replace 10.4.1.0/24 via 10.2.2.1
+        - ip route replace 10.4.2.0/24 via 10.2.2.1
+        - ip route replace 10.4.3.0/24 via 10.2.2.1
+        - ip route replace 10.4.5.0/24 via 10.2.2.1
+        - ip route replace 10.4.8.0/24 via 10.2.2.1
+        - ip route replace 10.4.4.0/24 via 10.2.2.1
+        - ip route replace 10.0.1.0/24 via 10.2.2.1
+        - ip route replace 10.10.10.0/24 via 10.2.2.1
+        - ip route replace 10.5.1.0/24 via 10.2.2.1
+        - ip route replace 10.5.3.0/24 via 10.2.2.1
+        - ip route replace 10.5.5.0/24 via 10.2.2.1
+        # Local downstream via tabriz-ix
+        - ip route replace 10.3.4.0/24 via 10.3.4.2
+        - ip route replace 10.4.6.0/24 via 10.3.4.2
+        - ip route replace 10.4.7.0/24 via 10.3.4.2
+        - ip route replace 10.5.4.0/24 via 10.3.4.2
+
+    # ── TIC EAST ── Mashhad region (no direct int'l gateway, routes via tic-tehran)
+    tic-east:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-tehran    (link 7)
+      # eth2: toward mashhad-ix    (link 12)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.2.3.2/24 dev eth1
+        - ip addr add 10.3.5.1/24 dev eth2
+        # Everything upstream: via tic-tehran
+        - ip route replace default via 10.2.3.1
+        # Local downstream via mashhad-ix
+        - ip route replace 10.3.5.0/24 via 10.3.5.2
+        - ip route replace 10.4.8.0/24 via 10.3.5.2
+        - ip route replace 10.4.4.0/24 via 10.3.5.2
+        - ip route replace 10.5.5.0/24 via 10.3.5.2
+
+    # ══════════════════════════════════════════════════════════════════
+    # TEHRAN REGION
+    # ══════════════════════════════════════════════════════════════════
+
+    # ── Tehran IX ──
+    tehran-ix:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-tehran  (link 8)
+      # eth2: toward tci         (link 13)
+      # eth3: toward iran-nin    (link 14)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.1.2/24 dev eth1
+        - ip addr add 10.3.2.1/24 dev eth2
+        - ip addr add 10.10.10.1/24 dev eth3
+        - ip route replace default via 10.3.1.1
+        - ip route replace 10.4.1.0/24 via 10.3.2.2
+        - ip route replace 10.4.2.0/24 via 10.3.2.2
+        - ip route replace 10.0.1.0/24 via 10.3.2.2
+
+    # ── TCI Tehran (AS58224) ── Largest fixed-line wholesale, cone=104
+    tci:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tehran-ix   (link 13)
+      # eth2: toward isp-shatel  (link 15)
+      # eth3: toward mob-mci     (link 16)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.2.2/24 dev eth1
+        - ip addr add 10.4.1.1/24 dev eth2
+        - ip addr add 10.4.2.1/24 dev eth3
+        - ip route replace default via 10.3.2.1
+        - ip route replace 10.0.1.0/24 via 10.4.1.2
+
+    # ── Shatel (Tehran) ── Major retail fixed ISP
+    isp-shatel:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward client-tehran  (link 17)
+      # eth2: toward tci            (link 15)
+      binds:
+        - config-realistic/isp-shatel/dnsmasq.conf:/etc/dnsmasq.conf:ro
+        - config/isp/blocklist.conf:/etc/dnsmasq.d/blocklist.conf:ro
+        - config-realistic/isp-shatel/nftables.conf:/etc/nftables.conf:ro
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.0.1.1/24 dev eth1
+        - ip addr add 10.4.1.2/24 dev eth2
+        - ip route replace default via 10.4.1.1
+        - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
+        - nft -f /etc/nftables.conf
+
+    # ── MCI / Hamrah Aval Tehran (AS197207) ── Largest mobile operator
+    mob-mci:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tci  (link 16)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.4.2.2/24 dev eth1
+        - ip route replace default via 10.4.2.1
+
+    # ── IPM (AS6736) ── Academic / research gateway
+    ipm-academic:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-tehran  (link 9)
+      exec:
+        - ip addr add 10.2.4.2/24 dev eth1
+        - ip route replace default via 10.2.4.1
+
+    # ── Client Tehran ── Fixed-line end user via Shatel
+    client-tehran:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward isp-shatel  (link 17)
+      exec:
+        - ip addr add 10.0.1.2/24 dev eth1
+        - ip route replace default via 10.0.1.1
+
+    # ── NIN ── National Information Network (domestic intranet services)
+    iran-nin:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tehran-ix  (link 14)
+      exec:
+        - ip addr add 10.10.10.2/24 dev eth1
+        - ip route replace default via 10.10.10.1
+
+    # ══════════════════════════════════════════════════════════════════
+    # SOUTH REGION (Isfahan, Shiraz, Bushehr, Bandar Abbas)
+    # ══════════════════════════════════════════════════════════════════
+
+    # ── Isfahan IX ── Regional IXP (exists in PeeringDB)
+    isfahan-ix:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-south     (link 10)
+      # eth2: toward tci-south     (link 18)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.3.2/24 dev eth1
+        - ip addr add 10.3.3.3/24 dev eth2
+        - ip route replace default via 10.3.3.1
+        - ip route replace 10.4.3.0/24 via 10.3.3.4
+        - ip route replace 10.4.5.0/24 via 10.3.3.4
+        - ip route replace 10.5.1.0/24 via 10.3.3.4
+        - ip route replace 10.5.3.0/24 via 10.3.3.4
+
+    # ── TCI South (AS58224) ── TCI wholesale presence in southern region
+    tci-south:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward isfahan-ix         (link 18)
+      # eth2: toward isp-south          (link 19)
+      # eth3: toward mob-irancell       (link 20)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.3.4/24 dev eth1
+        - ip addr add 10.4.5.1/24 dev eth2
+        - ip addr add 10.4.3.1/24 dev eth3
+        - ip route replace default via 10.3.3.3
+        - ip route replace 10.5.3.0/24 via 10.4.5.2
+        - ip route replace 10.5.1.0/24 via 10.4.3.2
+
+    # ── Mokhaberat South ── Fixed-line ISP in southern region
+    isp-south:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward client-south  (link 21)
+      # eth2: toward tci-south     (link 19)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.5.3.1/24 dev eth1
+        - ip addr add 10.4.5.2/24 dev eth2
+        - ip route replace default via 10.4.5.1
+
+    # ── IranCell (AS44244) ── Second mobile operator (southern/provincial)
+    # CEO replaced Jan 18, 2026 for resisting shutdown orders (FilterWatch)
+    mob-irancell:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tci-south         (link 20)
+      # eth2: toward client-province   (link 22)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.4.3.2/24 dev eth1
+        - ip addr add 10.5.1.1/24 dev eth2
+        - ip route replace default via 10.4.3.1
+
+    # ── Client South ── Fixed-line end user in Isfahan
+    client-south:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward isp-south  (link 21)
+      exec:
+        - ip addr add 10.5.3.2/24 dev eth1
+        - ip route replace default via 10.5.3.1
+
+    # ── Client Province ── Mobile end user via IranCell (southern)
+    client-province:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward mob-irancell  (link 22)
+      exec:
+        - ip addr add 10.5.1.2/24 dev eth1
+        - ip route replace default via 10.5.1.1
+
+    # ══════════════════════════════════════════════════════════════════
+    # WEST REGION (Tabriz, Urmia -- Turkey/Azerbaijan border)
+    # ══════════════════════════════════════════════════════════════════
+
+    # ── Tabriz IX ── Regional IXP
+    tabriz-ix:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-west     (link 11)
+      # eth2: toward tci-west     (link 23)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.4.2/24 dev eth1
+        - ip addr add 10.3.4.3/24 dev eth2
+        - ip route replace default via 10.3.4.1
+        - ip route replace 10.4.6.0/24 via 10.3.4.4
+        - ip route replace 10.4.7.0/24 via 10.3.4.4
+        - ip route replace 10.5.4.0/24 via 10.3.4.4
+
+    # ── TCI West (AS58224) ── TCI wholesale presence in western region
+    tci-west:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tabriz-ix       (link 23)
+      # eth2: toward isp-west        (link 24)
+      # eth3: toward mob-mci-west    (link 25)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.4.4/24 dev eth1
+        - ip addr add 10.4.6.1/24 dev eth2
+        - ip addr add 10.4.7.1/24 dev eth3
+        - ip route replace default via 10.3.4.3
+        - ip route replace 10.5.4.0/24 via 10.4.6.2
+
+    # ── Mokhaberat West ── Fixed-line ISP in Tabriz
+    isp-west:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward client-west  (link 26)
+      # eth2: toward tci-west     (link 24)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.5.4.1/24 dev eth1
+        - ip addr add 10.4.6.2/24 dev eth2
+        - ip route replace default via 10.4.6.1
+
+    # ── MCI West (AS197207) ── MCI mobile presence in Tabriz
+    mob-mci-west:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tci-west  (link 25)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.4.7.2/24 dev eth1
+        - ip route replace default via 10.4.7.1
+
+    # ── Client West ── Fixed-line end user in Tabriz
+    client-west:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward isp-west  (link 26)
+      exec:
+        - ip addr add 10.5.4.2/24 dev eth1
+        - ip route replace default via 10.5.4.1
+
+    # ══════════════════════════════════════════════════════════════════
+    # EAST REGION (Mashhad -- no direct international gateway)
+    # ══════════════════════════════════════════════════════════════════
+
+    # ── Mashhad IX ── Regional IXP
+    mashhad-ix:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tic-east     (link 12)
+      # eth2: toward tci-east     (link 27)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.5.2/24 dev eth1
+        - ip addr add 10.3.5.3/24 dev eth2
+        - ip route replace default via 10.3.5.1
+        - ip route replace 10.4.8.0/24 via 10.3.5.4
+        - ip route replace 10.4.4.0/24 via 10.3.5.4
+        - ip route replace 10.5.5.0/24 via 10.3.5.4
+
+    # ── TCI East (AS58224) ── TCI wholesale presence in eastern region
+    tci-east:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward mashhad-ix       (link 27)
+      # eth2: toward isp-east         (link 28)
+      # eth3: toward mob-mci-east     (link 29)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.3.5.4/24 dev eth1
+        - ip addr add 10.4.8.1/24 dev eth2
+        - ip addr add 10.4.4.1/24 dev eth3
+        - ip route replace default via 10.3.5.3
+        - ip route replace 10.5.5.0/24 via 10.4.8.2
+
+    # ── Mokhaberat East ── Fixed-line ISP in Mashhad
+    isp-east:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward client-east  (link 30)
+      # eth2: toward tci-east     (link 28)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.5.5.1/24 dev eth1
+        - ip addr add 10.4.8.2/24 dev eth2
+        - ip route replace default via 10.4.8.1
+
+    # ── MCI East (AS197207) ── MCI mobile presence in Mashhad
+    mob-mci-east:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward tci-east  (link 29)
+      exec:
+        - sysctl -w net.ipv4.ip_forward=1
+        - ip addr add 10.4.4.2/24 dev eth1
+        - ip route replace default via 10.4.4.1
+
+    # ── Client East ── Fixed-line end user in Mashhad
+    client-east:
+      kind: linux
+      image: iran-sim:latest
+      # eth1: toward isp-east  (link 30)
+      exec:
+        - ip addr add 10.5.5.2/24 dev eth1
+        - ip route replace default via 10.5.5.1
+
+  # ══════════════════════════════════════════════════════════════════
+  # LINKS (30 total)
+  # ══════════════════════════════════════════════════════════════════
+  # All nodes use ethN naming (linux kind).
+  # Link order determines ethN assignment.
+
+  links:
+    # ── International ──
+    # Link 1:  internet-srv <-> gw-falcon
+    - endpoints: ["internet-srv:eth1", "gw-falcon:eth1"]
+    # Link 2:  internet-srv <-> gw-epeg
+    - endpoints: ["internet-srv:eth2", "gw-epeg:eth1"]
+
+    # ── Border -> Regional backbone ──
+    # Link 3:  gw-falcon <-> tic-south    (FALCON lands in south)
+    - endpoints: ["gw-falcon:eth2", "tic-south:eth1"]
+    # Link 4:  gw-epeg <-> tic-west       (EPEG enters from northwest)
+    - endpoints: ["gw-epeg:eth2", "tic-west:eth1"]
+
+    # ── Backbone mesh ──
+    # Link 5:  tic-south <-> tic-tehran
+    - endpoints: ["tic-south:eth2", "tic-tehran:eth1"]
+    # Link 6:  tic-west <-> tic-tehran
+    - endpoints: ["tic-west:eth2", "tic-tehran:eth2"]
+    # Link 7:  tic-east <-> tic-tehran
+    - endpoints: ["tic-east:eth1", "tic-tehran:eth3"]
+
+    # ── Tehran region ──
+    # Link 8:  tic-tehran <-> tehran-ix
+    - endpoints: ["tic-tehran:eth4", "tehran-ix:eth1"]
+    # Link 9:  tic-tehran <-> ipm-academic
+    - endpoints: ["tic-tehran:eth5", "ipm-academic:eth1"]
+    # Link 10: tic-south <-> isfahan-ix
+    - endpoints: ["tic-south:eth3", "isfahan-ix:eth1"]
+    # Link 11: tic-west <-> tabriz-ix
+    - endpoints: ["tic-west:eth3", "tabriz-ix:eth1"]
+    # Link 12: tic-east <-> mashhad-ix
+    - endpoints: ["tic-east:eth2", "mashhad-ix:eth1"]
+
+    # ── Tehran IXP -> wholesale -> ISP ──
+    # Link 13: tehran-ix <-> tci
+    - endpoints: ["tehran-ix:eth2", "tci:eth1"]
+    # Link 14: tehran-ix <-> iran-nin
+    - endpoints: ["tehran-ix:eth3", "iran-nin:eth1"]
+    # Link 15: tci <-> isp-shatel
+    - endpoints: ["tci:eth2", "isp-shatel:eth2"]
+    # Link 16: tci <-> mob-mci
+    - endpoints: ["tci:eth3", "mob-mci:eth1"]
+    # Link 17: isp-shatel <-> client-tehran
+    - endpoints: ["isp-shatel:eth1", "client-tehran:eth1"]
+
+    # ── South IXP -> wholesale -> ISP ──
+    # Link 18: isfahan-ix <-> tci-south
+    - endpoints: ["isfahan-ix:eth2", "tci-south:eth1"]
+    # Link 19: tci-south <-> isp-south
+    - endpoints: ["tci-south:eth2", "isp-south:eth2"]
+    # Link 20: tci-south <-> mob-irancell
+    - endpoints: ["tci-south:eth3", "mob-irancell:eth1"]
+    # Link 21: isp-south <-> client-south
+    - endpoints: ["isp-south:eth1", "client-south:eth1"]
+    # Link 22: mob-irancell <-> client-province
+    - endpoints: ["mob-irancell:eth2", "client-province:eth1"]
+
+    # ── West IXP -> wholesale -> ISP ──
+    # Link 23: tabriz-ix <-> tci-west
+    - endpoints: ["tabriz-ix:eth2", "tci-west:eth1"]
+    # Link 24: tci-west <-> isp-west
+    - endpoints: ["tci-west:eth2", "isp-west:eth2"]
+    # Link 25: tci-west <-> mob-mci-west
+    - endpoints: ["tci-west:eth3", "mob-mci-west:eth1"]
+    # Link 26: isp-west <-> client-west
+    - endpoints: ["isp-west:eth1", "client-west:eth1"]
+
+    # ── East IXP -> wholesale -> ISP ──
+    # Link 27: mashhad-ix <-> tci-east
+    - endpoints: ["mashhad-ix:eth2", "tci-east:eth1"]
+    # Link 28: tci-east <-> isp-east
+    - endpoints: ["tci-east:eth2", "isp-east:eth2"]
+    # Link 29: tci-east <-> mob-mci-east
+    - endpoints: ["tci-east:eth3", "mob-mci-east:eth1"]
+    # Link 30: isp-east <-> client-east
+    - endpoints: ["isp-east:eth1", "client-east:eth1"]

@@ -100,7 +100,7 @@ RUN echo 'export PATH="/root/.local/bin:$PATH"' >> ~/.bashrc
 # Install Node.js and Gemini CLI
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
-    npm install -g @google/gemini-cli
+    npm install -g @google/gemini-cli @fission-ai/openspec@latest
 
 # Install Android SDK build-tools (aapt2, apksigner) and dependencies.
 # Required for building the redroid EthernetOverlay APK reproducibly.

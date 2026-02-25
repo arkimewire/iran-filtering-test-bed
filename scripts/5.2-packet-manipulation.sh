@@ -13,8 +13,8 @@ source scripts/common.sh
 # SECONDARY (IP fragment dropping):
 #   nftables rules drop all non-initial IP fragments.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
-INTERFACE="eth1"
+CONTAINER_NAME=$(resolve_container BACKBONE)
+INTERFACE=$(resolve_interface BACKBONE internal)
 PROXY_PORT=8443
 PROXY_SCRIPT="/opt/sni-reassembly-proxy.py"
 PROXY_PID_FILE="/var/run/sni-reassembly-proxy.pid"

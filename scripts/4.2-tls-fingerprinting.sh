@@ -7,7 +7,7 @@ source scripts/common.sh
 # Identifies and blocks clients based on TLS handshake fingerprints (JA3/JA4).
 # Uses nftables queue + nfqueue Python daemon for hex-pattern inspection.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 SIGNATURE_FILE="config/backbone/tls_signatures.conf"
 QUEUE_NUM=3
 DAEMON_SCRIPT="/opt/nfqueue-daemon.py"

@@ -7,7 +7,7 @@ source scripts/common.sh
 # Simulates statistical filtering by dropping or rate-limiting traffic
 # based on "suspicious" patterns (e.g., randomized drops for encrypted flows).
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 CONFIG_FILE="config/backbone/behavioral_pattern.conf"
 
 get_config() {

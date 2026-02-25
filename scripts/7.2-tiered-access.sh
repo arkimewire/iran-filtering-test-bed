@@ -13,7 +13,7 @@ source scripts/common.sh
 # When 7.2 is enabled AFTER other filters, it injects exemption rules into
 # all currently active nftables filtering tables/chains.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 WHITELIST_FILE="config/backbone/privileged_ips.conf"
 
 # All nftables tables and their forward chains used by filtering scripts

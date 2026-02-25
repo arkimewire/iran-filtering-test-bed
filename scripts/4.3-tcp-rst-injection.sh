@@ -7,7 +7,7 @@ source scripts/common.sh
 # Sends forged TCP RST packets to tear down connections with blocked SNI.
 # Uses nftables queue + nfqueue Python daemon for SNI inspection.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 BLOCKLIST_FILE="config/backbone/sni_blocklist.conf"
 QUEUE_NUM=4
 DAEMON_SCRIPT="/opt/nfqueue-daemon.py"

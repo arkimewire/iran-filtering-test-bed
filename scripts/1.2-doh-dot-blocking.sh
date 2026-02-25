@@ -7,7 +7,7 @@ source scripts/common.sh
 # Blocks known public DoH/DoT providers (e.g., Cloudflare, Google) and port 853 (TCP/UDP).
 # Also uses nfqueue DPI to detect ALPN 'dot' patterns and DNS provider SNI hostnames.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 CONFIG_FILE="config/backbone/doh_dot_providers.conf"
 QUEUE_NUM=6
 DAEMON_SCRIPT="/opt/nfqueue-daemon.py"

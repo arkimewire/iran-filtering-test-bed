@@ -1,6 +1,8 @@
 # Containerlab artifacts
 clab-iran-filtering/
 clab-iran-filtering/**
+clab-iran-realistic/
+clab-iran-realistic/**
 .clab/
 *.log
 

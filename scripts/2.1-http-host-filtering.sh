@@ -7,7 +7,7 @@ source scripts/common.sh
 # Inspects HTTP Host headers to block connections.
 # Uses nftables queue + nfqueue Python daemon for payload inspection.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 BLOCKLIST_FILE="config/backbone/http_blocklist.conf"
 QUEUE_NUM=1
 DAEMON_SCRIPT="/opt/nfqueue-daemon.py"

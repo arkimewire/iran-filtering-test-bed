@@ -3,7 +3,8 @@
 # 3.3 IPv6 Systematic Filtering
 # Disables or filters IPv6 traffic at the backbone layer.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+source "$(dirname "$0")/common.sh"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 
 status() {
     if docker exec "$CONTAINER_NAME" nft list table ip6 ipv6_filter >/dev/null 2>&1; then

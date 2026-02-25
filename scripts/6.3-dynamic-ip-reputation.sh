@@ -7,7 +7,7 @@ source scripts/common.sh
 # A multi-tiered reputation system for destination IPs.
 # Uses nftables to handle different levels of interference.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 REPUTATION_FILE="config/backbone/ip_reputation.conf"
 
 get_ips() {

@@ -6,7 +6,7 @@ source scripts/common.sh
 # 3.1 Individual and Range (CIDR) Blocking
 # Blocks traffic to/from specific IP addresses or ranges.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 BLOCKLIST_FILE="config/backbone/blocklist.conf"
 
 get_blocked_ips() {

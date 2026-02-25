@@ -7,7 +7,7 @@ source scripts/common.sh
 # Inspects TLS ClientHello SNI fields to drop connections.
 # Uses nftables queue + nfqueue Python daemon for payload inspection.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 BLOCKLIST_FILE="config/backbone/sni_blocklist.conf"
 QUEUE_NUM=2
 DAEMON_SCRIPT="/opt/nfqueue-daemon.py"

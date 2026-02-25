@@ -1,0 +1,341 @@
+{
+  "freeTextAnnotations": [],
+  "freeShapeAnnotations": [],
+  "groupStyleAnnotations": [],
+  "networkNodeAnnotations": [],
+  "nodeAnnotations": [
+    {
+      "id": "internet-srv",
+      "position": {
+        "x": 600,
+        "y": -700
+      },
+      "geoCoordinates": {
+        "lat": 48.775846,
+        "lng": 9.182932
+      }
+    },
+    {
+      "id": "gw-falcon",
+      "position": {
+        "x": 840,
+        "y": -560
+      },
+      "geoCoordinates": {
+        "lat": 50.110924,
+        "lng": 8.682127
+      }
+    },
+    {
+      "id": "gw-epeg",
+      "position": {
+        "x": 400,
+        "y": -580
+      },
+      "geoCoordinates": {
+        "lat": 48.856613,
+        "lng": 2.352222
+      }
+    },
+    {
+      "id": "tic-tehran",
+      "position": {
+        "x": 580,
+        "y": -440
+      },
+      "geoCoordinates": {
+        "lat": 51.507351,
+        "lng": -0.127758
+      }
+    },
+    {
+      "id": "tic-south",
+      "position": {
+        "x": 960,
+        "y": -380
+      },
+      "geoCoordinates": {
+        "lat": 48.775846,
+        "lng": 11.982932
+      }
+    },
+    {
+      "id": "tic-east",
+      "position": {
+        "x": 1440,
+        "y": -420
+      },
+      "geoCoordinates": {
+        "lat": 48.856613,
+        "lng": 5.152222
+      }
+    },
+    {
+      "id": "tehran-ix",
+      "position": {
+        "x": 440,
+        "y": -140
+      },
+      "geoCoordinates": {
+        "lat": 51.507351,
+        "lng": 2.672242
+      }
+    },
+    {
+      "id": "tci",
+      "position": {
+        "x": 460,
+        "y": 180
+      },
+      "geoCoordinates": {
+        "lat": 50.755745,
+        "lng": 11.162831
+      }
+    },
+    {
+      "id": "isp-shatel",
+      "position": {
+        "x": 480,
+        "y": 360
+      },
+      "geoCoordinates": {
+        "lat": 52.090823,
+        "lng": 10.662026
+      }
+    },
+    {
+      "id": "mob-mci",
+      "position": {
+        "x": 380,
+        "y": 360
+      },
+      "geoCoordinates": {
+        "lat": 50.836512,
+        "lng": 4.332121
+      }
+    },
+    {
+      "id": "mob-irancell",
+      "position": {
+        "x": 1100,
+        "y": 360
+      },
+      "geoCoordinates": {
+        "lat": 52.090823,
+        "lng": 6.702228
+      }
+    },
+    {
+      "id": "mob-mci-east",
+      "position": {
+        "x": 1600,
+        "y": 340
+      },
+      "geoCoordinates": {
+        "lat": 45.975846,
+        "lng": 9.182932
+      }
+    },
+    {
+      "id": "ipm-academic",
+      "position": {
+        "x": 580,
+        "y": -140
+      },
+      "geoCoordinates": {
+        "lat": 53.48725,
+        "lng": 1.852141
+      }
+    },
+    {
+      "id": "client-tehran",
+      "position": {
+        "x": 480,
+        "y": 560
+      },
+      "geoCoordinates": {
+        "lat": 51.575846,
+        "lng": 9.182932
+      }
+    },
+    {
+      "id": "client-province",
+      "position": {
+        "x": 1120,
+        "y": 640
+      },
+      "geoCoordinates": {
+        "lat": 53.48725,
+        "lng": -2.107657
+      }
+    },
+    {
+      "id": "iran-nin",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "geoCoordinates": {
+        "lat": 52.910924,
+        "lng": 8.682127
+      }
+    },
+    {
+      "id": "client-east",
+      "position": {
+        "x": 1440,
+        "y": 640
+      },
+      "geoCoordinates": {
+        "lat": 47.310924,
+        "lng": 8.682127
+      }
+    },
+    {
+      "id": "isp-east",
+      "position": {
+        "x": 1440,
+        "y": 340
+      },
+      "geoCoordinates": {
+        "lat": 49.527452,
+        "lng": -2.107657
+      }
+    },
+    {
+      "id": "tci-east",
+      "position": {
+        "x": 1440,
+        "y": 80
+      },
+      "geoCoordinates": {
+        "lat": 46.876714,
+        "lng": 0.372323
+      }
+    },
+    {
+      "id": "mashhad-ix",
+      "position": {
+        "x": 1440,
+        "y": -160
+      },
+      "geoCoordinates": {
+        "lat": 48.131025,
+        "lng": 6.702228
+      }
+    },
+    {
+      "id": "client-west",
+      "position": {
+        "x": 100,
+        "y": 540
+      },
+      "geoCoordinates": {
+        "lat": 46.795947,
+        "lng": 7.203033
+      }
+    },
+    {
+      "id": "mob-mci-west",
+      "position": {
+        "x": -80,
+        "y": 360
+      },
+      "geoCoordinates": {
+        "lat": 51.507351,
+        "lng": -2.927758
+      }
+    },
+    {
+      "id": "isp-west",
+      "position": {
+        "x": 100,
+        "y": 360
+      },
+      "geoCoordinates": {
+        "lat": 48.856613,
+        "lng": -0.447778
+      }
+    },
+    {
+      "id": "tci-west",
+      "position": {
+        "x": 40,
+        "y": 180
+      },
+      "geoCoordinates": {
+        "lat": 50.110924,
+        "lng": 5.882127
+      }
+    },
+    {
+      "id": "tabriz-ix",
+      "position": {
+        "x": 80,
+        "y": -140
+      },
+      "geoCoordinates": {
+        "lat": 48.775846,
+        "lng": 6.382932
+      }
+    },
+    {
+      "id": "client-south",
+      "position": {
+        "x": 960,
+        "y": 640
+      },
+      "geoCoordinates": {
+        "lat": 50.836512,
+        "lng": 0.372323
+      }
+    },
+    {
+      "id": "isp-south",
+      "position": {
+        "x": 960,
+        "y": 360
+      },
+      "geoCoordinates": {
+        "lat": 50.755745,
+        "lng": 7.203033
+      }
+    },
+    {
+      "id": "tci-south",
+      "position": {
+        "x": 960,
+        "y": 80
+      },
+      "geoCoordinates": {
+        "lat": 54.307351,
+        "lng": -0.127758
+      }
+    },
+    {
+      "id": "isfahan-ix",
+      "position": {
+        "x": 960,
+        "y": -140
+      },
+      "geoCoordinates": {
+        "lat": 51.656613,
+        "lng": 2.352222
+      }
+    },
+    {
+      "id": "tic-west",
+      "position": {
+        "x": 160,
+        "y": -420
+      },
+      "geoCoordinates": {
+        "lat": 50.110924,
+        "lng": 11.482127
+      }
+    }
+  ],
+  "edgeAnnotations": [],
+  "aliasEndpointAnnotations": [],
+  "viewerSettings": {}
+}

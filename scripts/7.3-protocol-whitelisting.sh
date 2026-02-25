@@ -7,7 +7,7 @@ source scripts/common.sh
 # Blocks everything except a strict whitelist of protocols (DNS, HTTP, HTTPS).
 # This is an escalation beyond blocking specific things; it blocks ALL by default.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 
 status() {
     if docker exec "$CONTAINER_NAME" nft list table ip protocol_whitelisting >/dev/null 2>&1; then

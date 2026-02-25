@@ -6,7 +6,7 @@ source scripts/common.sh
 # 6.2 Protocol-Specific Throttling (UDP/QUIC)
 # Blocks or throttles UDP traffic (e.g., port 443) to force TCP fallback.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 CONFIG_FILE="config/backbone/protocol_throttling.conf"
 
 get_udp_ports() {

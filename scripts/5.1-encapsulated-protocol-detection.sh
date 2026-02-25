@@ -7,7 +7,7 @@ source scripts/common.sh
 # Uses DPI to detect and drop encapsulated protocols like VMess/VLess.
 # Uses nftables queue + nfqueue Python daemon for hex-pattern inspection.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 SIGNATURE_FILE="config/backbone/encapsulated_signatures.conf"
 QUEUE_NUM=5
 DAEMON_SCRIPT="/opt/nfqueue-daemon.py"

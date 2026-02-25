@@ -1,11 +1,20 @@
 #!/bin/bash
 
 # 7.1 Total National Internet Shutdown (The "Kill Switch")
-# Simulates the total internet blackout by disconnecting IXP and ISPs.
-# This cuts all traffic between the national peering point and local providers.
+# Simple topology: severs IXP<->ISP link (drops on IXP interface toward ISP).
+# Realistic topology: drops all forwarded traffic on TIC Tehran backbone
+#   (simulates BGP route withdrawal at the national gateway level).
 
-CONTAINER_NAME="clab-iran-filtering-iran-ixp"
-INTERFACE="eth1" # Interface towards iran-isp
+source "$(dirname "$0")/common.sh"
+
+if [ "$TOPOLOGY" = "realistic" ]; then
+    CONTAINER_NAME=$(resolve_container BACKBONE)
+    KILL_MODE="backbone"
+else
+    CONTAINER_NAME=$(resolve_container IXP)
+    INTERFACE=$(resolve_interface IXP isp)
+    KILL_MODE="ixp"
+fi
 
 status() {
     if docker exec "$CONTAINER_NAME" nft list table inet kill_switch >/dev/null 2>&1; then
@@ -17,17 +26,18 @@ status() {
 }
 
 on() {
-    echo "Activating Kill Switch (Severing IXP-ISP link)..."
-    
-    # Use inet family for transparency
     docker exec "$CONTAINER_NAME" nft add table inet kill_switch
-    # High priority to catch all packets before other rules
     docker exec "$CONTAINER_NAME" nft add chain inet kill_switch forward '{ type filter hook forward priority -100; policy accept; }'
-    
-    # Block bidirectional traffic on the ISP-facing interface
-    echo "  - Interface: $INTERFACE (Dropping all traffic)"
-    docker exec "$CONTAINER_NAME" nft add rule inet kill_switch forward iifname "$INTERFACE" drop
-    docker exec "$CONTAINER_NAME" nft add rule inet kill_switch forward oifname "$INTERFACE" drop
+
+    if [ "$KILL_MODE" = "backbone" ]; then
+        echo "Activating Kill Switch (Dropping all forwarded traffic on backbone)..."
+        docker exec "$CONTAINER_NAME" nft add rule inet kill_switch forward drop
+    else
+        echo "Activating Kill Switch (Severing IXP-ISP link)..."
+        echo "  - Interface: $INTERFACE (Dropping all traffic)"
+        docker exec "$CONTAINER_NAME" nft add rule inet kill_switch forward iifname "$INTERFACE" drop
+        docker exec "$CONTAINER_NAME" nft add rule inet kill_switch forward oifname "$INTERFACE" drop
+    fi
     
     echo "Done."
 }

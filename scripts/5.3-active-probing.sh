@@ -7,7 +7,7 @@ source scripts/common.sh
 # Simulates the result of active probing where servers identified as VPN/proxy 
 # nodes are blacklisted.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+CONTAINER_NAME=$(resolve_container BACKBONE)
 PROBED_IPS_FILE="config/backbone/probed_ips.conf"
 
 get_probed_ips() {

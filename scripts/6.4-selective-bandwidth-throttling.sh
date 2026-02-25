@@ -6,8 +6,9 @@ cd "$(dirname "$0")/.."
 # Reduces bandwidth for international traffic.
 # Uses tc-tbf (Token Bucket Filter) for precise rate limiting.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
-INTERFACE="eth1"
+source "$(dirname "$0")/common.sh"
+CONTAINER_NAME=$(resolve_container BACKBONE)
+INTERFACE=$(resolve_interface BACKBONE internal)
 CONFIG_FILE="config/backbone/bandwidth_throttling.conf"
 
 get_config() {

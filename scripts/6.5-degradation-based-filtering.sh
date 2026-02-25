@@ -6,8 +6,9 @@ cd "$(dirname "$0")/.."
 # Systematically degrades connection quality (latency, jitter, packet loss).
 # Aimed at plausible deniability by making censorship look like bad network.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
-INTERFACE="eth1"
+source "$(dirname "$0")/common.sh"
+CONTAINER_NAME=$(resolve_container BACKBONE)
+INTERFACE=$(resolve_interface BACKBONE internal)
 CONFIG_FILE="config/backbone/degradation.conf"
 
 get_config() {

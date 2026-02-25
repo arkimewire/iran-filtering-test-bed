@@ -11,7 +11,8 @@ cd "$(dirname "$0")/.."
 # the iran-backbone node serves as both the routing chokepoint and the 
 # scrubbing center.
 
-CONTAINER_NAME="clab-iran-filtering-iran-backbone"
+source scripts/common.sh
+CONTAINER_NAME=$(resolve_container BACKBONE)
 BLOCKLIST_FILE="config/backbone/bgp_hijack.conf"
 
 get_prefixes() {
