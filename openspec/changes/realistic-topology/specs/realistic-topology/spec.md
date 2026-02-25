@@ -43,15 +43,15 @@ The topology SHALL include a TIC core node (`tic-tehran`) and multiple regional 
 - **AND** `client-tehran` retains full connectivity to `internet-srv`
 
 ### Requirement: Tehran IX for domestic traffic exchange
-The topology SHALL include a `tehran-ix` node connected to `tic-tehran` and to `iran-nin` (domestic services). Tehran IX SHALL serve as the domestic peering point where NIN traffic is exchanged.
+The topology SHALL include a `tehran-ix` node connected to `tic-tehran` and to `aparat-server` (domestic services). Tehran IX SHALL serve as the domestic peering point where NIN traffic is exchanged.
 
 #### Scenario: Domestic services reachable via Tehran IX
 - **WHEN** the topology is deployed
-- **THEN** `client-tehran` can reach `iran-nin` via a path through `tehran-ix`
+- **THEN** `client-tehran` can reach `aparat-server` via a path through `tehran-ix`
 
 #### Scenario: Domestic services survive international shutdown
 - **WHEN** all international links are severed (both border gateways disconnected)
-- **THEN** `client-tehran` can still reach `iran-nin` via `tehran-ix`
+- **THEN** `client-tehran` can still reach `aparat-server` via `tehran-ix`
 - **AND** `client-tehran` cannot reach `internet-srv`
 
 ### Requirement: ISP and mobile operator diversity

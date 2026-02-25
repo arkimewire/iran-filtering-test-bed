@@ -1,20 +1,67 @@
 name: iran-filtering
 
+# Miniature topology modeling Iran's internet architecture in a single-region slice.
+# Preserves the key structural concepts from the realistic multi-region topology
+# while remaining lightweight enough for local development and CI testing.
+#
+# ── Network Plane Architecture ────────────────────────────────────────────
+#
+#   [TRANSIT PLANE] — International traffic path (north-south, TIC-controlled)
+#     iran-client → isp-shatel → tehran-ix → tic-tehran → internet-srv
+#     tic-tehran is the national chokepoint: all DPI, SNI filtering, IP blocking,
+#     and bandwidth control run here. Shutdown = cut tic-tehran's upstream route.
+#
+#   [PEERING PLANE] — Domestic traffic path (east-west, IX-mediated, NIN)
+#     iran-client → isp-shatel → tehran-ix → aparat-server
+#     aparat-server connects DIRECTLY to tehran-ix (eth3, 10.10.10.0/24).
+#     NIN traffic does NOT pass through tic-tehran; it survives international shutdowns.
+#     This reflects real-world Jan 2026 behavior: domestic banking/Eitaa/Rubika
+#     remained up while all international transit was severed.
+#
+#   [TRANSIT/PEERING handoff] — tehran-ix bridges both planes
+#     tehran-ix sits between tic-tehran (transit) and isp-shatel + aparat-server (peering).
+#     It is also the "kill switch" point: dropping tehran-ix→isp-shatel traffic
+#     severs all connectivity (transit AND peering) to the end user.
+#
+# ── Node roles ────────────────────────────────────────────────────────────
+#   tic-tehran   — TIC backbone / GFW layer (AS49666). DPI, SNI filtering,
+#                  IP blocking, protocol interference. No direct int'l gateway
+#                  in this slice; connects to internet-srv directly for testing.
+#   tehran-ix    — Tehran Internet Exchange. Peering point for ISPs and NIN.
+#                  Also the kill-switch enforcement point (7.1).
+#   isp-shatel   — Shatel (AS48434). Major fixed-line residential ISP in Tehran.
+#                  DNS filtering, local routing, CGNAT for mobile subscribers.
+#   aparat-server — NIN domestic content server (Aparat/Rubika equivalent).
+#                  Directly peered with tehran-ix; reachable during int'l shutdown.
+#   internet-srv — Simulated global internet server (203.0.113.0/24).
+#
+# ── IP addressing scheme ──────────────────────────────────────────────────
+#   10.0.1.0/24   — iran-client ↔ isp-shatel        (client subnet)
+#   10.0.2.0/24   — isp-shatel ↔ tehran-ix           [PEERING PLANE]
+#   10.0.3.0/24   — tehran-ix ↔ tic-tehran           [TRANSIT/PEERING handoff]
+#   10.0.4.0/24   — isp-shatel ↔ iran-mobile         (mobile subscriber subnet)
+#   10.10.10.0/24 — tehran-ix ↔ aparat-server        [PEERING PLANE / NIN]
+#   203.0.113.0/24 — tic-tehran ↔ internet-srv       [TRANSIT PLANE]
+#
+# Deploy:  clab deploy
+# Destroy: clab destroy
+
 topology:
   nodes:
-    # 1. The User inside Iran
+
+    # ── End User ──────────────────────────────────────────────────────────
     iran-client:
       kind: linux
       image: iran-sim:latest
       exec:
         - ip addr add 10.0.1.2/24 dev eth1
         - ip route replace default via 10.0.1.1
-        # - bash -c 'printf "nameserver 8.8.8.8\noptions use-vc\n" > /etc/resolv.conf'    # In macos OrbStack docker engine TCP DNS is not working correctly, so we set options use-vc to force dnsmasq to use TCP for DNS queries, which is more reliable in this environment.
-        # - bash -c 'echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf'                # in macos OrbStack docker engine IPv6 didn't work correctly during DNS resolution, so we set precedence for IPv4 to make it more likely to use IPv4 for DNS queries, which is more reliable in case of orbstack docker engine on macos.
+        # - bash -c 'printf "nameserver 8.8.8.8\noptions use-vc\n" > /etc/resolv.conf'    # OrbStack: force TCP DNS
+        # - bash -c 'echo "precedence ::ffff:0:0/96 100" >> /etc/gai.conf'                # OrbStack: prefer IPv4
 
-    # 2. Local ISP (e.g., Irancell, Shuttle)
-    # Role: DNS Filtering, local routing
-    iran-isp:
+    # ── Local ISP (Shatel, AS48434) ───────────────────────────────────────
+    # Role: DNS filtering, local routing, mobile subscriber DHCP
+    isp-shatel:
       kind: linux
       image: iran-sim:latest
       labels:
@@ -25,32 +72,37 @@ topology:
         - config/isp/nftables.conf:/etc/nftables.conf:ro
       exec:
         - sysctl -w net.ipv4.ip_forward=1
-        - ip addr add 10.0.1.1/24 dev eth1 # Towards Client
-        - ip addr add 10.0.2.2/24 dev eth2 # Towards IXP
-        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip addr add 10.0.4.1/24 dev eth3; fi' # Towards Mobile
+        - ip addr add 10.0.1.1/24 dev eth1  # toward iran-client
+        - ip addr add 10.0.2.2/24 dev eth2  # toward tehran-ix   [PEERING PLANE]
+        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip addr add 10.0.4.1/24 dev eth3; fi'  # toward iran-mobile
         - ip route replace default via 10.0.2.1
         - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
         - nft -f /etc/nftables.conf
 
-    # 3. Iran IXP (Peering Point)
-    # Role: Interconnects ISPs and Backbone. The "Kill Switch" point.
-    iran-ixp:
+    # ── Tehran Internet Exchange ──────────────────────────────────────────
+    # Role: Peering point for ISPs and NIN. Kill-switch enforcement point (7.1).
+    # [TRANSIT/PEERING handoff node]
+    # eth1 -> isp-shatel:  peering plane (ISP downstream)
+    # eth2 -> tic-tehran:  transit plane (international upstream)
+    # eth3 -> aparat-server: peering plane (NIN directly, survives int'l shutdown)
+    tehran-ix:
       kind: linux
       image: iran-sim:latest
       labels:
         containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
       exec:
         - sysctl -w net.ipv4.ip_forward=1
-        - ip addr add 10.0.2.1/24 dev eth1 # Towards ISP
-        - ip addr add 10.0.3.2/24 dev eth2 # Towards Backbone
-        - ip addr add 10.10.10.1/24 dev eth3 # Towards Intranet
-        - ip route replace 10.0.1.0/24 via 10.0.2.2 # Route back to client
-        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip route replace 10.0.4.0/24 via 10.0.2.2; fi' # Route back to mobile
+        - ip addr add 10.0.2.1/24 dev eth1  # toward isp-shatel  [PEERING PLANE]
+        - ip addr add 10.0.3.2/24 dev eth2  # toward tic-tehran  [TRANSIT/PEERING handoff]
+        - ip addr add 10.10.10.1/24 dev eth3  # toward aparat-server  [PEERING PLANE / NIN]
+        - ip route replace 10.0.1.0/24 via 10.0.2.2  # route back to client
+        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip route replace 10.0.4.0/24 via 10.0.2.2; fi'  # route back to mobile
         - ip route replace default via 10.0.3.1
 
-    # 4. Iran Backbone (TIC / GFW Layer)
-    # Role: SNI filtering, DPI, IP blocking, Protocol interference
-    iran-backbone:
+    # ── TIC Tehran Backbone / GFW Layer (AS49666) ─────────────────────────
+    # Role: SNI filtering, DPI, IP blocking, protocol interference.
+    # National chokepoint — all international traffic passes through here.
+    tic-tehran:
       kind: linux
       image: iran-sim:latest
       labels:
@@ -60,15 +112,15 @@ topology:
         - config/backbone/nftables.conf:/etc/nftables.conf:ro
       exec:
         - sysctl -w net.ipv4.ip_forward=1
-        - ip addr add 10.0.3.1/24 dev eth1 # Towards IXP
-        - ip addr add 203.0.113.1/24 dev eth2 # Towards Internet
+        - ip addr add 10.0.3.1/24 dev eth1  # toward tehran-ix   [TRANSIT/PEERING handoff]
+        - ip addr add 203.0.113.1/24 dev eth2  # toward internet-srv  [TRANSIT PLANE]
         - ip route replace 10.0.2.0/24 via 10.0.3.2
         - ip route replace 10.0.1.0/24 via 10.0.3.2
         - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip route replace 10.0.4.0/24 via 10.0.3.2; fi'
         - nft -f /etc/nftables.conf
         - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
 
-    # 5. Global Internet Server
+    # ── Global Internet Server ─────────────────────────────────────────────
     internet-srv:
       kind: linux
       image: iran-sim:latest
@@ -80,15 +132,18 @@ topology:
         - ip addr add 203.0.113.101/24 dev eth1  # probed_ips (Shadowsocks)
         - ip route replace default via 203.0.113.1
 
-    # 6. Iran Intranet Server (National Network)
-    iran-intranet:
+    # ── NIN Domestic Content Server ───────────────────────────────────────
+    # Represents domestic services like Aparat or Rubika.
+    # Connected DIRECTLY to tehran-ix (PEERING PLANE) — no path through tic-tehran.
+    # Remains reachable during international transit shutdown (Jan 2026 behavior).
+    aparat-server:
       kind: linux
       image: iran-sim:latest
       exec:
         - ip addr add 10.10.10.2/24 dev eth1
         - ip route replace default via 10.10.10.1
 
-    # ── 7. Android Mobile User (conditional) ───────────────────────────
+    # ── Android Mobile User (conditional) ────────────────────────────────
     iran-mobile:
       kind: linux
       image: redroid/redroid:14.0.0-latest
@@ -106,7 +161,7 @@ topology:
               target: host
               phase: on-exit
 
-    # ── 8. Web scrcpy (conditional) ────────────────────────────────────
+    # ── Web scrcpy (conditional) ──────────────────────────────────────────
     scrcpy-web:
       kind: linux
       image: shmayro/scrcpy-web:latest
@@ -117,9 +172,15 @@ topology:
         - "8000:8000"
 
   links:
-    - endpoints: ["iran-client:eth1", "iran-isp:eth1"]
-    - endpoints: ["iran-isp:eth2", "iran-ixp:eth1"]
-    - endpoints: ["iran-ixp:eth2", "iran-backbone:eth1"]
-    - endpoints: ["iran-backbone:eth2", "internet-srv:eth1"]
-    - endpoints: ["iran-ixp:eth3", "iran-intranet:eth1"]
-    - endpoints: ["iran-mobile:eth1", "iran-isp:eth3"]
+    # [client subnet]
+    - endpoints: ["iran-client:eth1", "isp-shatel:eth1"]
+    # [PEERING PLANE] isp-shatel <-> tehran-ix
+    - endpoints: ["isp-shatel:eth2", "tehran-ix:eth1"]
+    # [TRANSIT/PEERING handoff] tehran-ix <-> tic-tehran
+    - endpoints: ["tehran-ix:eth2", "tic-tehran:eth1"]
+    # [TRANSIT PLANE] tic-tehran <-> internet-srv
+    - endpoints: ["tic-tehran:eth2", "internet-srv:eth1"]
+    # [PEERING PLANE] tehran-ix <-> aparat-server (NIN directly connected, bypasses tic-tehran)
+    - endpoints: ["tehran-ix:eth3", "aparat-server:eth1"]
+    # [mobile subscriber]
+    - endpoints: ["iran-mobile:eth1", "isp-shatel:eth3"]

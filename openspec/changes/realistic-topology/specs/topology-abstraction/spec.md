@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Topology auto-detection
-`scripts/common.sh` SHALL provide a `detect_topology()` function that determines which topology is currently deployed by checking for the existence of known containers. It SHALL return `"simple"` if `clab-iran-filtering-iran-backbone` exists, `"realistic"` if `clab-iran-realistic-tic-tehran` exists, or fail with an error if neither is found.
+`scripts/common.sh` SHALL provide a `detect_topology()` function that determines which topology is currently deployed by checking for the existence of known containers. It SHALL return `"simple"` if `clab-iran-filtering-tic-tehran` exists, `"realistic"` if `clab-iran-realistic-tic-tehran` exists, or fail with an error if neither is found.
 
 #### Scenario: Simple topology detected
 - **WHEN** the simple topology is deployed (containers `clab-iran-filtering-*` exist)
@@ -21,7 +21,7 @@
 #### Scenario: Resolve backbone in simple topology
 - **WHEN** simple topology is active
 - **AND** `resolve_container "BACKBONE"` is called
-- **THEN** it returns `"clab-iran-filtering-iran-backbone"`
+- **THEN** it returns `"clab-iran-filtering-tic-tehran"`
 
 #### Scenario: Resolve backbone in realistic topology
 - **WHEN** realistic topology is active
@@ -34,7 +34,7 @@
 - **AND** `resolve_container "IXP"` returns `"clab-iran-realistic-tehran-ix"`
 - **AND** `resolve_container "CLIENT"` returns `"clab-iran-realistic-client-tehran"`
 - **AND** `resolve_container "INTERNET_SRV"` returns `"clab-iran-realistic-internet-srv"`
-- **AND** `resolve_container "INTRANET"` returns `"clab-iran-realistic-iran-nin"`
+- **AND** `resolve_container "INTRANET"` returns `"clab-iran-realistic-aparat-server"`
 
 ### Requirement: Role-based interface resolution
 `scripts/common.sh` SHALL provide a `resolve_interface(role, direction)` function that returns the correct network interface name for a given role and direction. The `direction` parameter SHALL be one of: `"internal"` (toward downstream/clients), `"external"` (toward upstream/internet), or a specific named direction as needed.
@@ -78,7 +78,7 @@ If topology detection fails or `common.sh` is sourced outside of a deployed envi
 #### Scenario: Fallback to simple topology
 - **WHEN** no topology containers are detected
 - **AND** `resolve_container "BACKBONE"` is called
-- **THEN** it returns the simple topology default `"clab-iran-filtering-iran-backbone"`
+- **THEN** it returns the simple topology default `"clab-iran-filtering-tic-tehran"`
 - **AND** a warning is printed to stderr
 
 ### Requirement: Clab prefix variable

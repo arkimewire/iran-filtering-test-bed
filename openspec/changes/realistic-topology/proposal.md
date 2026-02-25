@@ -35,7 +35,7 @@ A second, more realistic topology file enables testing scenarios the simple topo
 | Mobile | `mob-irancell` | IranCell | AS44244 -- second mobile operator |
 | End User | `client-tehran` | Tehran end user | Fixed-line + mobile access |
 | End User | `client-province` | Provincial end user | Represents non-Tehran users |
-| Domestic | `iran-nin` | NIN domestic services | ArvanCloud CDN, banking, Eitaa, Rubika |
+| Domestic | `aparat-server` | NIN domestic services | ArvanCloud CDN, banking, Eitaa, Rubika |
 | Academic | `ipm-academic` | IPM / Fundamental Sciences Institute | AS6736 -- academic gateway (minor) |
 
 ### Key architectural corrections vs simple topology:
@@ -44,7 +44,7 @@ A second, more realistic topology file enables testing scenarios the simple topo
 2. **Dual international paths**: Two distinct border gateways (FALCON + EPEG) both connecting through `tic-tehran`.
 3. **Regional backbone**: `tic-south` and `tic-east` enable simulation of regional shutdowns (cutting one region while others stay up).
 4. **ISP diversity**: Separate fixed (Shatel), mobile (MCI, IranCell), and wholesale (TCI) nodes with independent filtering capability.
-5. **Correct IXP role**: `tehran-ix` primarily for domestic traffic exchange (connecting to `iran-nin`), not as a routing chokepoint.
+5. **Correct IXP role**: `tehran-ix` primarily for domestic traffic exchange (connecting to `aparat-server`), not as a routing chokepoint.
 6. **Academic gateway**: IPM (AS6736) has separate privileged access, consistent with Jan 2026 whitelisting data (universities whitelisted first on Jan 9).
 7. **IRGC control layer**: `tic-tehran` represents the "militarized" TIC where IRGC Cyber HQ (per FilterWatch Feb 2026) has command authority.
 8. **Geolocation filtering**: Implementable at `tic-tehran` as CIDR blocking of Israel IP ranges (per user's network engineer source).
@@ -68,7 +68,7 @@ A second, more realistic topology file enables testing scenarios the simple topo
   | IXP | `iran-ixp` | `tehran-ix` |
   | CLIENT | `iran-client` | `client-tehran` |
   | INTERNET_SRV | `internet-srv` | `internet-srv` |
-  | INTRANET | `iran-intranet` | `iran-nin` |
+  | INTRANET | `iran-intranet` | `aparat-server` |
 
 - `test-suite`: `test.sh` refactored to detect active topology and resolve container names, IPs, and interfaces dynamically. All 26 test sections must pass on both topologies.
 

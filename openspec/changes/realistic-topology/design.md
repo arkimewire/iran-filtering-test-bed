@@ -61,7 +61,7 @@ The "internal" interface for tc qdisc rules (bandwidth throttling, DBF) is eth4 
 **tehran-ix (IXP equivalent):**
 - eth1: toward tic-tehran (link 8)
 - eth2: toward tci (link 13)
-- eth3: toward iran-nin (link 14)
+- eth3: toward aparat-server (link 14)
 
 ### Decision 7: Kill switch behavior per topology
 

@@ -880,6 +880,112 @@ assert_pass "7.1 idempotent: reachable after double off" \
     run_c "$CLIENT" "ping -c1 -W3 1.1.1.1"
 
 # ===========================================================================
+# Realistic-topology-only tests (sections 27-29)
+# ===========================================================================
+
+if [ "$TOPOLOGY" = "realistic" ]; then
+
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== 27. Transit/Peering Separation: International shutdown preserves NIN ==="
+# (realistic topology only -- NIN is reachable via tehran-ix direct link,
+#  independent of tic-tehran transit routes)
+# ---------------------------------------------------------------------------
+
+BB_CONTAINER=$(resolve_container BACKBONE)
+
+# Verify baseline: both internet and NIN are reachable
+assert_pass "27 baseline: client-tehran can reach internet-srv" \
+    run_c "$CLIENT" "ping -c1 -W3 203.0.113.2"
+assert_pass "27 baseline: client-tehran can reach aparat-server" \
+    run_c "$CLIENT" "ping -c1 -W3 10.10.10.2"
+
+# Simulate international transit cut: blackhole internet prefix on tic-tehran
+docker exec "$BB_CONTAINER" ip route add blackhole 203.0.113.0/24 2>/dev/null || \
+    docker exec "$BB_CONTAINER" ip route replace blackhole 203.0.113.0/24
+docker exec "$BB_CONTAINER" ip route add blackhole 172.66.0.0/24 2>/dev/null || \
+    docker exec "$BB_CONTAINER" ip route replace blackhole 172.66.0.0/24
+
+# Internet must be unreachable
+assert_fail "27 transit cut: client-tehran CANNOT reach internet-srv (203.0.113.2)" \
+    run_c "$CLIENT" "ping -c1 -W3 203.0.113.2"
+
+# NIN must still be reachable (via tehran-ix direct peering link, bypasses tic-tehran)
+assert_pass "27 transit cut: client-tehran CAN still reach aparat-server (10.10.10.2)" \
+    run_c "$CLIENT" "ping -c1 -W3 10.10.10.2"
+
+# Restore transit routes
+docker exec "$BB_CONTAINER" ip route del blackhole 203.0.113.0/24 2>/dev/null || true
+docker exec "$BB_CONTAINER" ip route del blackhole 172.66.0.0/24 2>/dev/null || true
+
+# Verify restored
+assert_pass "27 restored: client-tehran can reach internet-srv again" \
+    run_c "$CLIENT" "ping -c1 -W3 203.0.113.2"
+
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== 28. Mobile CGNAT ==="
+# (realistic topology only)
+# ---------------------------------------------------------------------------
+
+PROVINCE_CLIENT="${CLAB_PREFIX}-client-province"
+MOB_IRANCELL="${CLAB_PREFIX}-mob-irancell"
+INTERNET_SRV_C=$(resolve_container INTERNET_SRV)
+
+assert_contains "28 initially OFF" "OFF" "$(./scripts/cgnat.sh status)"
+
+./scripts/cgnat.sh on > /dev/null
+assert_contains "28 ON" "ON" "$(./scripts/cgnat.sh status)"
+
+# Verify CGNAT table exists on mob-irancell
+CGNAT_TABLE=$(docker exec "$MOB_IRANCELL" nft list table ip cgnat 2>/dev/null || true)
+assert_contains "28 ON: cgnat nftables table exists on mob-irancell" "masquerade" "$CGNAT_TABLE"
+
+# Verify subscriber (client-province) can still reach internet when CGNAT is on
+assert_pass "28 ON: client-province can reach internet-srv via CGNAT" \
+    docker exec "$PROVINCE_CLIENT" ping -c1 -W5 203.0.113.2
+
+# Verify inbound: unsolicited NEW connection to subscriber IP should be blocked
+# internet-srv attempts to reach client-province directly (10.5.1.2)
+# The CGNAT forward_filter drops ct state new on mob-irancell eth1 toward 10.5.1.0/24
+assert_fail "28 ON: unsolicited inbound to client-province (10.5.1.2) is blocked" \
+    docker exec "$INTERNET_SRV_C" ping -c1 -W3 10.5.1.2
+
+./scripts/cgnat.sh off > /dev/null
+assert_contains "28 OFF after disable" "OFF" "$(./scripts/cgnat.sh status)"
+
+# Verify reachability still works after CGNAT off
+assert_pass "28 OFF: client-province still reachable after CGNAT off" \
+    docker exec "$PROVINCE_CLIENT" ping -c1 -W5 203.0.113.2
+
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== 29. East-West Domestic Reachability ==="
+# Verify regional clients can reach NIN (domestic services)
+# (realistic topology only)
+# ---------------------------------------------------------------------------
+
+SOUTH_CLIENT="${CLAB_PREFIX}-client-south"
+EAST_CLIENT="${CLAB_PREFIX}-client-east"
+WEST_CLIENT="${CLAB_PREFIX}-client-west"
+PROVINCE_CLIENT="${CLAB_PREFIX}-client-province"
+NIN_IP="10.10.10.2"
+
+assert_pass "29: client-south can reach aparat-server ($NIN_IP)" \
+    docker exec "$SOUTH_CLIENT" ping -c1 -W5 "$NIN_IP"
+
+assert_pass "29: client-east can reach aparat-server ($NIN_IP)" \
+    docker exec "$EAST_CLIENT" ping -c1 -W5 "$NIN_IP"
+
+assert_pass "29: client-west can reach aparat-server ($NIN_IP)" \
+    docker exec "$WEST_CLIENT" ping -c1 -W5 "$NIN_IP"
+
+assert_pass "29: client-province can reach aparat-server ($NIN_IP)" \
+    docker exec "$PROVINCE_CLIENT" ping -c1 -W5 "$NIN_IP"
+
+fi  # end realistic-topology-only tests
+
+# ===========================================================================
 echo ""
 echo "========================================="
 echo "  Results: $PASS passed, $FAIL failed"

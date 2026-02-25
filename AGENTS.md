@@ -7,37 +7,94 @@ i'm not insisting to make this lab a complete 1-1 mapping of the real world, as 
 ## real world setup
 
 - we have some cables coming into iran from outside of iran
-- BACKBONE network: the first point of contact is the BACKBONE devices within backbone network organization (Iran telecom & irgc gov & ...)
-  - there are several backbone devices which are the first point of contact for the traffic coming into iran
-  - these devices are in hand of Iranian Telecom & IRGC Gov & ...
+  - **submarine cables**: e.g. the **FALCON** cable lands on the southern coast at Bandar Abbas (Indian Ocean), providing connectivity toward the Gulf states and beyond. simulated by `gw-falcon` in the realistic topology.
+  - **terrestrial cables**: e.g. the **EPEG** cable enters from Turkey/Azerbaijan through the northwest border near Tabriz. simulated by `gw-epeg` in the realistic topology.
+  - these cable landing points are the physical entry of international traffic into Iran. they connect directly to the TIC backbone at regional nodes.
+- TIC backbone network: the first point of contact for all international traffic is **TIC (Telecommunications Infrastructure Company, AS12880)** -- Iran's primary transit provider and the national chokepoint -- alongside IRGC-controlled infrastructure. simulated by `tic-tehran` (and `tic-south`, `tic-west`, `tic-east` in the realistic topology).
+  - there are several TIC backbone nodes which are the first point of contact for traffic entering Iran -- one per major region (Tehran, south/Isfahan, west/Tabriz, east/Mashhad)
+  - these nodes are controlled by TIC, IRGC, and related government entities
   - these devices are probably some advanced and expensive and complex devices
   - regarding who is providing these devices and technologies to the terroristic regime of Iran:
     - according to an ARTICLE 19 report (February 2026) and The Guardian investigation, Chinese companies are the primary suppliers: Huawei and ZTE provide DPI and internet-filtering equipment, while Hikvision and Tiandy supply surveillance and facial recognition systems (the same technologies used against Uyghurs in China). There are also smaller, less-known Chinese companies providing tools with "alarming" capabilities that researchers have not yet fully analyzed.
     - Russia has also been a key partner: according to United24 Media and Agenstvo Novosti reports, Russian company Protei helped Iranian mobile operators integrate DPI into their interception systems. Russia also provided electronic warfare systems (tested in Ukraine) for jamming Starlink satellite internet signals, and helped build the multi-layered architecture used in the January 2026 shutdown -- one of the most sophisticated internet shutdowns in history.
     - both China and Iran promote "cyber sovereignty" at the UN level -- the idea that a state has absolute control over the internet within its borders -- in an attempt to legitimize internet shutdowns and digital repression as "sovereign rights."
     - if any US/EU/AUS/JP/KOREA/... companies are involved, they are probably circumventing international sanctions.
-  - the back bone devices are also connected to each other, probably indirectly
-- IXP network: after the BACKBONE devices there are another type of entities or devices called IXP or public site or pubsite or public peering or ...
-  - these are the second point of contact for the traffic coming into iran
-  - they sit after the BACKBONE layer and BACKBONE devices are connected to them
-  - i guess the the BACKBONE sites are connected to each other through these IXP layers, but i'm not sure, maybe also the BACKBONE devices are also connected to each other directly as well.
-  - the IXP sites are mostly deployed near big cities
-    - probably several IXP sites are deployed in Tehran, several in Mashhad, several in Tabriz, several in Isfahan ...
-- ISP networks: the next layer after IXP layer is the ISP layers
-  - so each ISP site is connected to an IXP site via dedicated links. each IXP site might be connected to several ISP sites.
-  - as an example of ISP networks, we can name Iranian Telecom, Shuttle, IranCell, HamrahAvval, HiWeb, MobenNet, ...
+  - TIC backbone nodes interconnect via direct private fiber links or via TIC's own AS12880 BGP peering -- **NOT through IXPs**. see the transit vs peering section below.
+- IXP network: after the TIC backbone layer there are peering points called IXP (Internet Exchange Point) or public site or pubsite or public peering or ... simulated by `tehran-ix` (and `isfahan-ix`, `tabriz-ix`, `mashhad-ix` in the realistic topology).
+  - they sit after the TIC backbone layer; TIC backbone nodes connect **to** IXPs as participants (not as a transit path between backbone nodes)
+  - IXPs enable east-west peering between ISPs and domestic content providers -- they do not carry north-south (international transit) traffic on their own
+  - the IXP sites are mostly deployed near big cities: Tehran, Mashhad, Tabriz, Isfahan, and others
+- wholesale/transit aggregation: between the IXPs and retail ISPs there is often a **wholesale** layer. in Iran, **TCI (Telecommunications Company of Iran, AS58224)** -- the state-owned fixed-line incumbent -- acts as the wholesale carrier that aggregates retail ISPs and mobile operators in each region. simulated by `tci`, `tci-south`, `tci-west`, `tci-east` in the realistic topology. note: TCI (retail/wholesale incumbent) is distinct from TIC (international backbone/transit).
+- ISP networks: the retail layer serving end users. simulated by `isp-shatel`, `isp-south`, `isp-west`, `isp-east`.
+  - as an example of ISP networks: Shatel, IranCell, MCI/HamrahAvval, HiWeb, MobenNet, Mokhaberat, ...
   - each ISP site is connected to several end users (home users, business users, ...)
-  - each brand like Irancell might have an ISP site in different parts of the country and connected to different IXP sites.
   - each brand might have their own filtering infrastructure (GFW)
-  - END USERS are connected to the ISP sites, thourgh wired or wireless links
+  - END USERS are connected to the ISP sites, through wired or wireless links
+- mobile carriers: a specialized ISP type that applies **CGNAT** (carrier-grade NAT) to subscriber traffic. simulated by `mob-irancell`, `mob-mci`, `mob-mci-west`, `mob-mci-east` in the realistic topology, and `iran-mobile` (Android device) in both topologies. CGNAT means the internet sees the carrier's shared IP, not the subscriber's actual address.
+- NIN domestic content: servers directly connected to IXPs (not through TIC backbone). these survive international shutdowns because they never need TIC for local reachability. simulated by `aparat-server`.
 
 ## so we would have this setup in abstract:
 
 1. internet
-2. backbone
-3. ixp
-4. isp
-5. end users
+2. border gateways (cable landing points: FALCON, EPEG) → `gw-falcon`, `gw-epeg` (realistic only)
+3. TIC backbone (AS12880) — transit/filtering chokepoint → `tic-tehran` (+`tic-south`, `tic-west`, `tic-east` in realistic) [TRANSIT PLANE]
+4. IXPs (Tehran IX, Isfahan IX, Tabriz IX, Mashhad IX) → `tehran-ix` (+`isfahan-ix`, `tabriz-ix`, `mashhad-ix` in realistic) [TRANSIT/PEERING handoff]
+5. wholesale/transit aggregation (TCI, AS58224) → `tci` (+`tci-south`, `tci-west`, `tci-east` in realistic)
+6. ISPs (Shatel, Mokhaberat, ...) → `isp-shatel` (+`isp-south`, `isp-west`, `isp-east` in realistic) [PEERING PLANE]
+7. mobile carriers (IranCell, MCI, ...) → `mob-irancell`, `mob-mci`, etc. (realistic) / `iran-mobile` (simple) [MOBILE SUBSCRIBER PLANE]
+8. end users → `iran-client` (simple), `client-tehran/south/west/east/province` (realistic)
+9. NIN domestic content (directly on IXP, no TIC path) → `aparat-server` [PEERING PLANE]
+
+the simple topology (`topology.clab.yml`) collapses layers 2, 5 and most of 7 for lightweight testing, keeping the key structural relationships intact. the realistic topology (`topology-realistic.clab.yml`) models all layers across 4 regions.
+
+## transit vs peering: north-south and east-west traffic
+
+understanding the difference between transit and peering is essential for understanding how Iranian internet traffic flows and why some services survive shutdowns while others do not.
+
+### transit (north-south traffic)
+
+**transit** means you pay an upstream provider to carry your traffic to the rest of the internet. it is a commercial relationship: you buy access to the full global routing table. in Iran, **TIC (Telecommunications Infrastructure Company, AS12880)** is the primary transit provider. when an Iranian ISP wants to reach YouTube, the traffic goes:
+
+```
+iran-client -> isp-shatel -> tci -> tehran-ix -> tic-tehran -> gw-falcon/epeg -> internet
+```
+(simple topology collapses tci and the border gateways: `iran-client -> isp-shatel -> tehran-ix -> tic-tehran -> internet-srv`)
+
+this is "north-south" traffic: it crosses the national border. TIC is the chokepoint -- this is where filtering, DPI, and bandwidth throttling are applied. if TIC cuts the international link, all transit traffic dies.
+
+### peering (east-west traffic)
+
+**peering** means two networks agree to exchange traffic directly with each other for free (or at low cost), without paying a transit provider. this only works for traffic that stays between the two peering parties -- it does not give you access to the rest of the internet. in Iran, **tehran-ix** (Tehran Internet Exchange) is the main facility where domestic ISPs and content providers peer with each other. when an Iranian user reaches a domestic service like Aparat or Rubika, the traffic can flow:
+
+```
+iran-client -> isp-shatel -> tci -> tehran-ix -> aparat-server (domestic content)
+```
+(simple topology: `iran-client -> isp-shatel -> tehran-ix -> aparat-server`)
+
+this is "east-west" traffic: it stays inside Iran and never touches TIC's international backbone. because it bypasses TIC entirely, it also bypasses TIC's filtering and international link dependencies.
+
+### why this matters during shutdowns
+
+when the regime cuts international internet access (the "kill switch"), they sever TIC's upstream links. this kills all north-south (transit) traffic to the global internet. however, east-west (peering) traffic between domestic networks through tehran-ix continues to work -- which is why Iranian banking, domestic social media (Soroush, Rubika), and local services remain reachable during full internet shutdowns.
+
+this is the key insight: **a domestic content server connected directly to an IXP survives international shutdowns because it never needed TIC to reach local users.**
+
+### analogy
+
+think of transit like buying a multi-hop airline ticket through a hub: you pay, the journey is long, and if the main hub shuts down, you are stuck. peering is like a direct shuttle between two nearby cities: it is free between the parties, faster, and completely independent of the main airline hub.
+
+### how this maps to the realistic topology
+
+in `topology-realistic.clab.yml`:
+- **TRANSIT PLANE**: links between `tic-tehran` (backbone) and the outside world -- north-south paid transit. filtering and DPI live here.
+- **PEERING PLANE**: links between `tehran-ix` and ISPs/domestic servers -- east-west free exchange. no filtering on this plane.
+- **TRANSIT/PEERING handoff**: the link between `tic-tehran` and `tehran-ix` is where the two planes meet. `tehran-ix` acts as a distribution node: it receives international traffic from TIC and distributes it to ISPs, and it also provides a peering fabric for domestic-only traffic that bypasses TIC entirely.
+- **`aparat-server`**: a domestic content server (representing services like Aparat or Rubika) connected directly to `tehran-ix`. it has no path through `tic-tehran`, so it is reachable during international shutdowns.
+- **`mob-irancell`**: the mobile carrier node sits on both the peering plane (domestic) and applies CGNAT (carrier-grade NAT) for subscriber traffic before it exits upstream.
+
+### clarification: how backbone nodes interconnect
+
+the TIC backbone nodes are **not** connected to each other through IXP. backbone-to-backbone interconnect happens either via direct fiber (private backbone links) or via the international transit peering between TIC's own AS and upstream providers. IXPs are strictly for peering between different autonomous systems (ISPs, CDNs, content providers) -- they are not part of the backbone's own internal routing. the backbone connects **to** IXPs as a participant, not as a transit path between backbone nodes.
 
 ## the ways the filtering is implemented:
 the filtering is implemented via different ways:
@@ -47,21 +104,21 @@ the filtering is implemented via different ways:
      - The DNS server returns the IP address of an alternative website like `peyvandha.ir` (which is not the case anymore as of 2022). For example, it will return `peyvandha.ir` or `10.10.3.5` (just an example, i'm not sure if this is the real IP address of `peyvandha.ir`) although the `peyvandha.ir` and its IP addresss are not available anymore from the start of 2022. The ips related to `peyvandha.ir` were `10.10.34.34`, `10.10.34.35`, and `10.10.34.36`.
      - Or the DNS server returns a fake IP address that is not reachable, leading the client to get a connection timeout.
      - This is usually implemented in the ISP layer because it is standard for ISPs to have their own DNS servers for their customers.
-   - **1.2 DoH and DoT Blocking:** Since DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT) can bypass traditional ISP poisoning by encrypting the query, the backbone layer intervenes. (Backbone layer)
+   - **1.2 DoH and DoT Blocking:** Since DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT) can bypass traditional ISP poisoning by encrypting the query, the TIC backbone layer intervenes. (TIC backbone layer / `tic-tehran`)
      - Suppose a user tries to use a secure resolver to bypass the ISP's poison. The GFW actively blocks the IP addresses of known public DoH/DoT providers like Cloudflare (`1.1.1.1`), Google (`8.8.8.8`), and Quad9. This forces the client to fall back to the ISP's monitored DNS servers.
 
-2. **HTTP Host Header Inspection and Blockpage Injection** (Backbone Layer)
+2. **HTTP Host Header Inspection and Blockpage Injection** (TIC backbone layer / `tic-tehran`)
    - **2.1 HTTP Host and URL Keyword Filtering:** For plaintext HTTP traffic (which is still significant in Iran), the GFW inspects the `Host` header and URL keywords in HTTP requests at the backbone layer.
      - If a blocked domain is detected in the `Host` header, the GFW injects a forged HTTP response -- either a blockpage (e.g., an HTTP 302 redirect to a government-controlled page, like the former `peyvandha.ir`) or a TCP RST to kill the connection.
      - This is distinct from DNS poisoning: even if the user bypasses DNS filtering and connects to the correct IP, the GFW can still detect the blocked domain in the plaintext HTTP `Host` header and block the request.
      - The IRBlock study (USENIX Security 2025) found 6.8 million IPs affected by HTTP blockpage injection, showing this is still a widely-used technique despite the growth of HTTPS.
      - This technique is only effective against unencrypted HTTP traffic; HTTPS encrypts the Host header, which is why the regime also relies on SNI inspection (section 4.1 below) for encrypted traffic.
 
-3. **IP and Routing Layer Filtering** (Backbone Layer)
+3. **IP and Routing Layer Filtering** (TIC backbone layer / `tic-tehran`)
    - **3.1 Individual and Range (CIDR) Blocking:** Even if the user manages to bypass DNS filtering (e.g., by using a custom DNS resolver or hardcoding the IP address), the backbone can drop all packets destined for specific IPs or ranges.
      - For example, `x.com` is hosted on Cloudflare at `172.66.0.227`. Even if the user knows this IP and tries to connect directly, the backbone will drop the traffic.
      - In practice, the regime often blocks entire CIDR ranges (e.g., Cloudflare IP ranges) rather than individual IPs, which causes collateral damage to unrelated websites hosted on the same infrastructure.
-     - This is done at the backbone layer, not the ISP or IXP, because the backbone is the national chokepoint where all international traffic passes. IXP is just a peering/routing layer; it doesn't inspect or filter traffic. Maintaining centralized IP blacklists is the regime's responsibility at the national level, and ISPs generally don't maintain their own blacklists.
+     - This is done at the TIC backbone layer (`tic-tehran`), not the ISP or IXP, because TIC is the national chokepoint where all international transit traffic passes. IXP is just a peering/routing layer; it doesn't inspect or filter traffic. Maintaining centralized IP blacklists is TIC's responsibility at the national level, and ISPs generally don't maintain their own blacklists.
      - This serves as the second line of defense and is also used to block known VPN server IPs, Tor relays, and proxy servers.
    - **3.2 BGP Hijacking and Blackholing:** BGP (Border Gateway Protocol) is the protocol that "glues" the world's autonomous systems together. The regime manipulates this protocol to "kidnap" or "swallow" traffic before it even reaches its intended destination.
      - **Mechanism (BGP Hijacking):** The national backbone (TIC - AS12880) can announce a "more specific" route (a smaller IP prefix) for an international service than what the actual owner (e.g., Google or Cloudflare) is announcing. Since internet routers always prefer the most specific path, traffic from around the world (or within the region) is sucked into Iran's network.
@@ -72,7 +129,7 @@ the filtering is implemented via different ways:
    - **3.3 IPv6 Systematic Filtering:** As IPv6 adoption increases, the GFW has implemented identical filtering rules for IPv6 traffic.
      - In some cases, IPv6 is completely disabled at the backbone level to close potential "backdoors" that users might exploit to bypass IPv4-only filtering rules.
 
-4. **Transport Layer and Encryption Handshake Filtering** (Backbone Layer)
+4. **Transport Layer and Encryption Handshake Filtering** (TIC backbone layer / `tic-tehran`)
    - **4.1 SNI (Server Name Indication) Discovery:** Suppose you managed to circumvent DNS filtering (e.g., you are trying to visit `x.com`, and as it's filtered, you try to get the IP address of `x.com` using cloudflare dns or google dns or ...).
      - Suppose now you have the IP address of `x.com` -> `a.b.c.d`.
      - During the encrypted HTTPS/TLS connection, after the TCP handshake, the client initiates the SSL Handshake. This handshake contains the SNI (Server Name Indication) field, which holds the domain or hostname of the server (e.g., `x.com`) in cleartext.
@@ -88,7 +145,7 @@ the filtering is implemented via different ways:
      - **TCP RST Injection:** When the GFW detects a blocked SNI or HTTP Host header, it sends forged TCP RST (reset) packets to both the client and the server, causing both sides to immediately tear down the connection. This is the primary enforcement mechanism for SNI-based and HTTP-based blocking -- the GFW doesn't just passively drop packets, it actively kills the connection by spoofing reset signals.
      - **Garbage Data Injection:** During an active connection, the GFW may also inject "garbage" data or invalid packets into the TCP stream. Suppose a user is using an obfuscated protocol like Shadowsocks. The GFW injects a small amount of invalid data. While a standard browser might fail gracefully, this tactic is specifically designed to break the state machines of obfuscation tools that expect a very specific protocol structure, causing them to fail or expose their signature.
 
-5. **Deep Packet Inspection (DPI) and Protocol Analysis** (Backbone Layer)
+5. **Deep Packet Inspection (DPI) and Protocol Analysis** (TIC backbone layer / `tic-tehran`)
    - **5.1 Encapsulated Protocol Detection:** Sometimes the appearance of the packet is not suspicious to the naked eye (it does not contain SNI, etc.), so the GFW uses DPI to inspect the internal layers of the packet.
      - They attempt to find encapsulated protocols like VMess, VLess, or other detectable VPN and proxy signatures.
      - If any of these are found, the packet is dropped. This is performed at the backbone layer as ISPs usually don't implement this method because it's expensive and complex and they don't have the resources to do it (at least up to our knowledge).
@@ -102,7 +159,7 @@ the filtering is implemented via different ways:
      - This was a major technique from approximately 2022-2024. By early 2024, upgrades to Iran's DPI infrastructure reduced reliance on active probing (since passive DPI became accurate enough), but it remains part of the arsenal and can be reactivated.
      - This technique is particularly effective against protocols like Shadowsocks and Tor bridges, where the server must respond to protocol-specific handshakes that the prober can trigger.
 
-6. **Behavioral, Statistical, and Quality-of-Service Filtering** (Backbone Layer)
+6. **Behavioral, Statistical, and Quality-of-Service Filtering** (TIC backbone layer / `tic-tehran`)
    - **6.1 Behavioral Pattern Recognition and Statistics:** The GFW matches the traffic patterns (packet size, frequency, and entropy) against those it doesn't like.
      - Based on these statistical models or machine learning, it decides to drop the traffic, lower the quality of the traffic, or lower the bandwidth.
      - This model is mostly done in the backbone layer; ISPs usually do not implement this because it's expensive and complex and they don't have the resources (at least up to our knowledge).
@@ -148,10 +205,10 @@ the filtering is implemented via different ways:
        - **KCP and Paqet:** Some tools attempt to use the **KCP protocol** or the **Paqet** tool to mitigate the effects of artificial packet loss and jitter induced by DBF. These protocols are designed for high reliability over lossy links, which can help maintain a usable connection even when the GFW is actively inducing degradation.
      - **User fatigue as a goal:** A key strategic objective of DBF is to exhaust users psychologically. Rather than triggering outrage with a clear block, the constant frustration of slow, unreliable connections is designed to make users give up trying to access the free internet -- achieving the censorship goal through attrition rather than confrontation.
 
-7. **Policy-Based and Architectural Control**
-   - **7.1 Total National Internet Shutdown (The "Kill Switch"):** The regime can completely shut off international internet access by severing the connection at the backbone level -- either by nullrouting international BGP routes or by dropping all international traffic at the backbone's border routers.
-     - This creates a total national blackout where even advanced VPNs and anti-filtering tools are useless, as there is no path from inside Iran to the global internet. This was most notably executed during the **January 2026 Protests**, where the regime implemented a complete severance of international links. Crucially, the domestic intranet (Iranian websites, banking, etc.) typically remains functional during these shutdowns because the IXP-to-ISP links stay up -- only the backbone's international links are cut.
-     - In the 2025 "stealth blackout," the regime even maintained global BGP route announcements (so it appeared from outside that Iran was still connected) while silently dropping all international traffic at the backbone layer. This made the shutdown harder to detect and measure from abroad.
+7. **Policy-Based and Architectural Control** (TIC backbone layer / `tic-tehran`, except 7.1 which runs on `tehran-ix`)
+   - **7.1 Total National Internet Shutdown (The "Kill Switch"):** The regime can completely shut off international internet access by severing the connection at the TIC backbone level -- either by nullrouting international BGP routes or by dropping all international traffic at TIC's border routers.
+     - This creates a total national blackout where even advanced VPNs and anti-filtering tools are useless, as there is no path from inside Iran to the global internet. This was most notably executed during the **January 2026 Protests**, where the regime implemented a complete severance of international links. Crucially, the domestic intranet (Iranian websites, banking, etc.) typically remains functional during these shutdowns because the IXP-to-ISP links stay up -- only TIC's international links are cut.
+     - In the 2025 "stealth blackout," the regime even maintained global BGP route announcements (so it appeared from outside that Iran was still connected) while silently dropping all international traffic at the TIC backbone layer. This made the shutdown harder to detect and measure from abroad.
    - **7.2 Tiered Access and Whitelisting (The "National Information Network"):** The long-term goal is a model where the network defaults to blocking everything except a "whitelist" of approved domestic and international services.
      - This "National Intranet" often involves "Tiered Access," where different classes of users (e.g., journalists, students, government officials receiving "Cyber Freedom Areas") receive different levels of internet freedom and bandwidth, while the general populace is restricted to monitored domestic apps.
    - **7.3 Protocol Whitelisting (Default-Deny Posture):** During escalated censorship periods (such as the June 2025 stealth blackout), the backbone switches from a default-allow to a **default-deny** posture for protocol types.
@@ -202,15 +259,64 @@ one can use this test bed to test and learn and practice a new anti-filtering to
 ## simulation requirements
 
 ### node types
-- the topology consists of the following node types, each running as a linux container (`iran-sim:latest` image based on Ubuntu, unless noted otherwise):
-  - `internet-srv` — represents a server on the global internet
-  - `iran-backbone` — the TIC / GFW layer, first point of contact for international traffic
-  - `iran-ixp` — the peering / interconnection point, also the "kill switch" point
-  - `iran-isp` — a local ISP (e.g. Irancell, Shuttle, MCI, ...)
-  - `iran-client` — a standard Linux end user inside Iran
-  - `iran-intranet` — a server on the Iranian national network (intranet)
-  - `iran-mobile` — an Android-based end user (conditionally enabled)
-  - `scrcpy-web` — browser-based UI for the Android client (conditionally enabled)
+
+all nodes run as linux containers (`iran-sim:latest` image based on Ubuntu, unless noted otherwise). nodes marked `(R)` exist only in `topology-realistic.clab.yml`; nodes marked `(S)` exist only in `topology.clab.yml`; unmarked nodes appear in both.
+
+#### border gateways `(R)`
+- `gw-falcon` — FALCON submarine cable gateway. Connects `internet-srv` to `tic-south`. Represents the southern coast cable landing at Bandar Abbas. [TRANSIT PLANE]
+- `gw-epeg` — EPEG terrestrial cable gateway. Connects `internet-srv` to `tic-west`. Represents the Turkey/Azerbaijan border cable entry at Tabriz. [TRANSIT PLANE]
+
+#### TIC backbone mesh — AS49666 [TRANSIT PLANE]
+- `tic-tehran` — TIC central hub. Main DPI/filtering chokepoint for all 20 filtering mechanisms. No direct international gateway; transit enters via `tic-south` and `tic-west`. Connected to `tehran-ix` for downstream distribution.
+- `tic-south` `(R)` — TIC southern region (Bandar Abbas, Isfahan, Shiraz). Terminates FALCON cable via `gw-falcon`. Routes domestic traffic via `tic-tehran`.
+- `tic-west` `(R)` — TIC western region (Tabriz, Urmia). Terminates EPEG cable via `gw-epeg`. Routes domestic traffic via `tic-tehran`.
+- `tic-east` `(R)` — TIC eastern region (Mashhad). No direct international gateway; all traffic routes via `tic-tehran`.
+
+#### internet exchange points [TRANSIT/PEERING handoff]
+- `tehran-ix` — Tehran Internet Exchange. Bridges the transit plane (`tic-tehran`) and the peering plane (`tci`/`isp-shatel`/`aparat-server`). Also the kill-switch enforcement point (7.1).
+- `isfahan-ix` `(R)` — Isfahan Internet Exchange. Regional peering point between `tic-south` and the south wholesale/ISP layer.
+- `tabriz-ix` `(R)` — Tabriz Internet Exchange. Regional peering point between `tic-west` and the west wholesale/ISP layer.
+- `mashhad-ix` `(R)` — Mashhad Internet Exchange. Regional peering point between `tic-east` and the east wholesale/ISP layer.
+
+#### wholesale / transit aggregation — TCI AS58224 `(R)` [PEERING PLANE]
+Note: TCI (Telecommunications Company of Iran, state-owned fixed-line incumbent) is distinct from TIC (backbone/transit). TCI is the wholesale aggregator between IXPs and retail ISPs.
+- `tci` — TCI Tehran wholesale. Aggregates `isp-shatel`, `mob-mci`, and other Tehran-region ISPs. Connected to `tehran-ix`.
+- `tci-south` — TCI South wholesale. Aggregates `isp-south` and `mob-irancell`. Connected to `isfahan-ix`.
+- `tci-west` — TCI West wholesale. Aggregates `isp-west` and `mob-mci-west`. Connected to `tabriz-ix`.
+- `tci-east` — TCI East wholesale. Aggregates `isp-east` and `mob-mci-east`. Connected to `mashhad-ix`.
+
+#### fixed-line ISPs [PEERING PLANE]
+- `isp-shatel` — Shatel (AS48434). Major retail fixed-line ISP in Tehran. Runs DNS filtering (dnsmasq) and ISP-layer nftables rules. Connects to `tci` (realistic) or directly to `tehran-ix` (simple).
+- `isp-south` `(R)` — Mokhaberat South. Fixed-line ISP in Isfahan region. Connects to `tci-south`.
+- `isp-west` `(R)` — Mokhaberat West. Fixed-line ISP in Tabriz region. Connects to `tci-west`.
+- `isp-east` `(R)` — Mokhaberat East. Fixed-line ISP in Mashhad region. Connects to `tci-east`.
+
+#### mobile carriers [MOBILE SUBSCRIBER PLANE]
+- `iran-mobile` `(S)` — Android-based end user (`redroid/redroid:14.0.0-latest` image). Connects to `isp-shatel` as a mobile subscriber. Conditionally enabled via `IRAN_MOBILE=true`.
+- `mob-irancell` `(R)` — IranCell (AS44244). Second mobile operator (southern/provincial). Applies CGNAT (`scripts/cgnat.sh`): MASQUERADE on upstream interface, blocks unsolicited inbound. CEO replaced Jan 18, 2026 for resisting shutdown orders (FilterWatch). Connects subscribers (`client-province`) to `tci-south`.
+- `mob-mci` `(R)` — MCI / Hamrah Aval Tehran (AS197207). Largest mobile operator. Connects to `tci`.
+- `mob-mci-west` `(R)` — MCI mobile presence in Tabriz. Connects to `tci-west`.
+- `mob-mci-east` `(R)` — MCI mobile presence in Mashhad. Connects to `tci-east`.
+
+#### end users
+- `iran-client` `(S)` — Standard Linux end user (fixed-line). Primary test client for the simple topology. Connects to `isp-shatel`.
+- `client-tehran` `(R)` — Fixed-line end user in Tehran via `isp-shatel`.
+- `client-south` `(R)` — Fixed-line end user in Isfahan via `isp-south`.
+- `client-west` `(R)` — Fixed-line end user in Tabriz via `isp-west`.
+- `client-east` `(R)` — Fixed-line end user in Mashhad via `isp-east`.
+- `client-province` `(R)` — Mobile end user in the southern subscriber pool via `mob-irancell`.
+
+#### NIN domestic content server [PEERING PLANE]
+- `aparat-server` — NIN domestic content server (Aparat/Rubika equivalent). Connected **directly** to `tehran-ix` (eth3, 10.10.10.0/24). Has no path through `tic-tehran`. Remains reachable during international transit shutdowns (reflects Jan 2026 behavior: domestic banking/Eitaa/Rubika stayed up while all international transit was severed).
+
+#### simulated internet
+- `internet-srv` — Simulated global internet server (203.0.113.0/24, multiple IP aliases for testing blocklist, reputation, and probing scenarios). Connects to `gw-falcon` and `gw-epeg` (realistic) or directly to `tic-tehran` (simple).
+
+#### academic / research `(R)`
+- `ipm-academic` — IPM (AS6736). Iranian academic/research network gateway. Connected directly to `tic-tehran`. Represents a special-access path outside normal ISP routing.
+
+#### UI utilities
+- `scrcpy-web` `(S)` — Browser-based viewer for the Android client (`shmayro/scrcpy-web:latest` image). Accessible at `http://localhost:8000`. Conditionally enabled via `IRAN_MOBILE=true`.
 
 ## Usage
 
@@ -232,10 +338,20 @@ Note that this requires a host with **KVM support**.
 - **Destroy:** `clab destroy`
 
 ### connectivity
-- all client traffic to the internet must flow through the full chain: `iran-client -> iran-isp -> iran-ixp -> iran-backbone -> internet`
-- `iran-backbone` is connected to the real internet via its Docker bridge interface (`eth0`) with NAT/MASQUERADE, so clients can reach real-world services (google.com, x.com, etc.) not just simulated ones
-- `iran-client` should also be able to reach `internet-srv` (the simulated internet server on `203.0.113.0/24`)
-- `iran-intranet` is reachable from within the Iranian network (via `iran-ixp`) but does not have a path to the global internet
+
+**simple topology (`topology.clab.yml`):**
+- international (transit): `iran-client → isp-shatel → tehran-ix → tic-tehran → internet-srv` [TRANSIT PLANE]
+- domestic NIN (peering): `iran-client → isp-shatel → tehran-ix → aparat-server` [PEERING PLANE]
+
+**realistic topology (`topology-realistic.clab.yml`):**
+- international (transit, Tehran): `client-tehran → isp-shatel → tci → tehran-ix → tic-tehran → tic-south → gw-falcon → internet-srv` [TRANSIT PLANE]
+- international (transit, south): `client-province → mob-irancell [CGNAT] → tci-south → isfahan-ix → tic-south → gw-falcon → internet-srv`
+- domestic NIN (peering): `client-tehran → isp-shatel → tci → tehran-ix → aparat-server` [PEERING PLANE]
+- cross-regional domestic: `client-south → isp-south → tci-south → isfahan-ix → tic-south → tic-tehran → tehran-ix → aparat-server` (east-west via tic-tehran hub)
+
+**both topologies:**
+- `tic-tehran` is connected to the real internet via its Docker bridge interface (`eth0`) with NAT/MASQUERADE, so clients can reach real-world services (google.com, x.com, etc.)
+- `aparat-server` is reachable from within the Iranian network (via `tehran-ix`) but has no path through `tic-tehran`; it survives international shutdown scenarios
 - DNS resolution typically uses the default Docker DNS (`127.0.0.11`). Note that in some environments like OrbStack, UDP port 53 can be unreliable, requiring a forced TCP configuration (`options use-vc` in `resolv.conf`), but this is not necessary in Docker Desktop for Mac.
 - In OrbStack, the IPv4 is preferred over IPv6 via `gai.conf` (`precedence ::ffff:0:0/96 100`) since the topology only routes IPv4. (Note: This was required in OrbStack but is optional in Docker Desktop; currently disabled in topology).
 
@@ -271,10 +387,10 @@ explanations:
   This script simulates DNS hijacking at the ISP layer.
 
    * Mechanism: It uses nftables to redirect all DNS (UDP/TCP port 53) traffic originating from the
-     iran-client (on interface eth1) to the iran-isp's local DNS server (10.0.1.1:53).
+     iran-client (on interface eth1) to the isp-shatel's local DNS server (10.0.1.1:53).
    * Purpose: This forces clients to use the ISP's DNS, allowing the ISP to implement DNS-layer filtering
      (e.g., returning fake IPs for blocked domains).
-   * Location: Runs on the clab-iran-filtering-iran-isp container.
+   * Location: Runs on the `clab-iran-filtering-isp-shatel` container.
    * Commands used: nft add table, nft add chain, nft add rule for NAT redirection.
    * Usage:
        * on: Activates the DNS hijacking rules.
@@ -287,7 +403,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to drop traffic to known public DoH/DoT provider IP addresses (e.g., Cloudflare, Google DNS) and also blocks TCP port 853, which is commonly used for DoT.
    * Purpose: To prevent users from bypassing ISP-level DNS poisoning by encrypting their DNS queries. By blocking access to secure DNS resolvers, the GFW forces clients to fall back to monitored DNS servers.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add set` (to define a set of IP addresses), `nft add element`, `nft add chain`, `nft add rule` for dropping packets based on destination IP or port.
    * Usage:
        * `on`: Activates the DoH/DoT blocking rules.
@@ -300,7 +416,7 @@ explanations:
 
    * Mechanism: It uses `iptables` string matching to inspect the `Host` header in plaintext HTTP (port 80) requests. If a blocked domain is found in the `config/backbone/http_blocklist.conf` file, the connection is dropped.
    * Purpose: Even if DNS filtering is bypassed, this mechanism can still block access to undesirable websites by examining the `Host` header in unencrypted HTTP traffic. This can lead to blockpages or connection resets in a real-world scenario.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `iptables -I FORWARD -p tcp --dport 80 -m string --string "Host: $domain" --algo bm -j DROP` to insert rules for string matching and dropping packets. `iptables -D` to delete rules.
    * Usage:
        * `on`: Reads domains from `http_blocklist.conf` and adds `iptables` rules to block them.
@@ -313,7 +429,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to create a set of IP addresses (`ip_blocklist`) from `config/backbone/blocklist.conf`. Any traffic destined to or originating from these IP addresses is then dropped.
    * Purpose: To block access to specific servers or entire CIDR ranges (e.g., cloud services used for VPNs or hosting blocked content), even if DNS filtering is bypassed and the client knows the direct IP. This is a critical layer of defense at the national chokepoint.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add set` (to define a set of IP addresses, with `flags interval` to support CIDR ranges), `nft add element` (to add IPs to the set), `nft add chain`, `nft add rule` for dropping packets based on source or destination IP address belonging to the `ip_blocklist` set.
    * Usage:
        * `on`: Reads IP addresses/CIDR ranges from `blocklist.conf`, creates an `nftables` set, and adds rules to drop traffic to/from these IPs.
@@ -324,9 +440,9 @@ explanations:
 
   This script simulates BGP (Border Gateway Protocol) hijacking and blackholing at the backbone layer.
 
-   * Mechanism: It simulates BGP hijacking by adding a "blackhole" static route for a specific victim IP prefix (`VICTIM_PREFIX`) on the `iran-backbone` container. This causes all traffic destined for that prefix to be dropped (blackholed) within the backbone, preventing it from reaching its intended destination.
+   * Mechanism: It simulates BGP hijacking by adding a "blackhole" static route for a specific victim IP prefix (`VICTIM_PREFIX`) on the `tic-tehran` container. This causes all traffic destined for that prefix to be dropped (blackholed) within the backbone, preventing it from reaching its intended destination.
    * Purpose: To simulate how a national-level actor can "kidnap" or "swallow" traffic for specific internet services by announcing more specific routes and then dropping that traffic, making the service unreachable. This is a powerful, low-level filtering technique that affects routing at a fundamental level.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `ip route add blackhole <IP/CIDR>` to add a blackhole route, and `ip route del blackhole <IP/CIDR>` to remove it. `ip route show` is used for status checking.
    * Usage:
        * `on`: Adds a blackhole route for the `VICTIM_PREFIX`.
@@ -337,9 +453,9 @@ explanations:
 
   This script simulates the systematic filtering or disabling of IPv6 traffic at the backbone layer.
 
-   * Mechanism: It uses `nftables` to drop all IPv6 traffic that passes through the `iran-backbone` container's forward chain. This effectively disables IPv6 connectivity for clients.
+   * Mechanism: It uses `nftables` to drop all IPv6 traffic that passes through the `tic-tehran` container's forward chain. This effectively disables IPv6 connectivity for clients.
    * Purpose: To simulate how a regime might close potential "backdoors" that users could exploit to bypass IPv4-only filtering rules, especially as IPv6 adoption increases. By completely dropping IPv6 traffic, it ensures that filtering efforts are not circumvented.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table ip6` (to create an IPv6 specific table), `nft add chain ip6` (to create an IPv6 specific chain for forwarding), `nft add rule ip6 ... drop` to drop all IPv6 packets in the forward chain.
    * Usage:
        * `on`: Adds `nftables` rules to drop all IPv6 traffic.
@@ -352,7 +468,7 @@ explanations:
 
    * Mechanism: It uses `iptables` string matching to inspect the cleartext SNI field in TLS ClientHello packets (typically on TCP port 443). If a blocked domain (read from `config/backbone/sni_blocklist.conf`) is detected in the SNI, the connection is dropped.
    * Purpose: To block access to HTTPS websites even when DNS filtering has been bypassed. The SNI field, sent in plaintext during the initial TLS handshake, reveals the intended hostname, allowing the GFW to identify and block connections to blacklisted domains without decrypting the full traffic.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `iptables -I FORWARD -p tcp --dport 443 -m string --string "$domain" --algo bm -j DROP` to insert rules for string matching in the SNI field and dropping packets. `iptables -D` to delete rules.
    * Usage:
        * `on`: Reads domains from `sni_blocklist.conf` and adds `iptables` rules to block connections based on the SNI.
@@ -365,7 +481,7 @@ explanations:
 
    * Mechanism: It uses `iptables` hex-string matching to detect known non-browser TLS handshake signatures in HTTPS traffic (port 443). Mock signatures are loaded from `config/backbone/tls_signatures.conf`. Uses a custom iptables chain (`TLS_FP_FILTER`) for organized rule management.
    * Purpose: To detect and block advanced circumvention tools that use encrypted tunnels, even if SNI is hidden or encrypted. The goal is to identify non-standard TLS clients and traffic patterns associated with VPNs, while allowing legitimate browser traffic.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `iptables -N` to create a custom chain, `iptables -A ... -m string --hex-string ... --algo bm -j DROP` for hex-based signature matching.
    * Usage:
        * `on`: Reads hex signatures from `tls_signatures.conf` and adds `iptables` rules to block matching TLS handshakes.
@@ -378,7 +494,7 @@ explanations:
 
    * Mechanism: It uses `iptables` string matching (similar to 4.1) to inspect TLS ClientHello packets for blocked SNI domains from `config/backbone/sni_blocklist.conf`. Instead of silently dropping (like 4.1), it uses `REJECT --reject-with tcp-reset` to actively send RST packets. Uses a custom iptables chain (`SNI_RST_FILTER`) with both hex-based exact matching and subdomain dot-prefix matching.
    * Purpose: To simulate the GFW's active interference methods. When blocked content (like a forbidden SNI or HTTP Host header) is detected, the GFW doesn't just passively drop packets; it actively sends forged RST packets to both the client and server. This causes both ends of the connection to immediately close, making it appear as if the connection failed legitimately rather than being censored.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `iptables -N` to create a custom chain, `iptables -A ... -m string --hex-string ... --algo bm -j REJECT --reject-with tcp-reset` for SNI-based RST injection.
    * Usage:
        * `on`: Reads domains from `sni_blocklist.conf` and adds `iptables` rules to inject TCP RST for matching SNIs.
@@ -391,7 +507,7 @@ explanations:
 
    * Mechanism: It uses `iptables` hex-string matching to scan packet payloads for known proxy protocol signatures loaded from `config/backbone/encapsulated_signatures.conf`. Uses a custom iptables chain (`ENCAP_PROTO_FILTER`) for organized rule management. Each signature is matched using Boyer-Moore algorithm.
    * Purpose: To counter circumvention tools that hide their traffic within other protocols, making them harder to identify through simpler filtering methods like SNI or HTTP Host header inspection. This mechanism targets the payload itself for known VPN/proxy signatures.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `iptables -N` to create a custom chain, `iptables -A ... -m string --hex-string ... --algo bm -j DROP` for hex-based signature matching.
    * Usage:
        * `on`: Reads hex signatures from `encapsulated_signatures.conf` and adds `iptables` rules to drop matching packets.
@@ -405,7 +521,7 @@ explanations:
    * Context: Anti-filtering tools (GoodbyeDPI, zapret, MahsaNG) split the TLS ClientHello across multiple small **TCP segments** so that the SNI field is spread across separate packets, evading per-packet DPI inspection.
    * Primary countermeasure (TCP stream reassembly): A transparent proxy (`scripts/sni-reassembly-proxy.py`) intercepts all port-443 traffic via `iptables REDIRECT`, reassembles the full TCP stream (just as a real DPI box would), extracts the SNI from the reconstructed ClientHello, and RSTs the connection if the SNI matches `config/backbone/sni_blocklist.conf`. Allowed traffic is forwarded transparently to the original destination. This defeats TCP segmentation and TLS record fragmentation because the proxy reads from the socket (which inherently reassembles TCP segments) before inspecting.
    * Secondary countermeasure (IP fragment drop): `nftables` rules drop all non-initial IP fragments (`ip frag-off & 0x3fff != 0 drop`), disrupting any tool or protocol relying on IP-level fragmentation.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `iptables -t nat ... -j REDIRECT --to-port 8443` for transparent proxy redirection. `python3 sni-reassembly-proxy.py` as the reassembly daemon. `nft add rule ... ip frag-off & 0x3fff != 0 drop` for IP fragment blocking.
    * Usage:
        * `on`: Starts the TCP stream reassembly proxy, sets up iptables REDIRECT, and enables IP fragment dropping rules.
@@ -418,7 +534,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to create a set of IP addresses from `config/backbone/probed_ips.conf` (representing IPs confirmed via probing) and drops all traffic to/from these IPs. This simulates the outcome of active probing without implementing the actual probing logic.
    * Purpose: To proactively block VPN/proxy servers whose identity has been confirmed. In reality, government probing clients would actively scan suspected servers; here we mock that result with a static list of "confirmed" IPs.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add set` (with interval flags for CIDR support), `nft add element`, `nft add rule` for dropping traffic to/from probed IPs.
    * Usage:
        * `on`: Reads confirmed VPN IPs from `probed_ips.conf` and blocks them via `nftables`.
@@ -431,7 +547,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to apply two heuristic rules: (1) random packet loss for large packets (simulating rejection of high-entropy encrypted flows), and (2) rate-limiting new connection bursts (simulating detection of protocol "churning" typical of VPN tools). Parameters are loaded from `config/backbone/behavioral_pattern.conf`.
    * Purpose: To detect and interfere with VPNs and other circumvention tools that might otherwise bypass simpler filtering methods. This is a simplified simulation of what would be ML-based behavioral analysis in reality.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add chain`, `nft add rule ... numgen random mod 100 < N drop` for probabilistic drops, `nft add rule ... ct state new limit rate over N/second ... drop` for burst rate limiting.
    * Usage:
        * `on`: Enables random packet loss and connection burst throttling based on config parameters.
@@ -444,7 +560,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to drop all UDP traffic on common QUIC/HTTP3 ports (loaded from `config/backbone/protocol_throttling.conf`, defaults to 443, 8443, 2053, 2083, 2087, 2096) in both directions (source and destination port).
    * Purpose: To force clients using modern, often encrypted, UDP-based protocols (like QUIC, WireGuard) to fall back to TCP. TCP traffic is generally easier for the GFW to inspect, manipulate, and filter (e.g., via SNI filtering or RST injection).
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add chain`, `nft add rule ... udp dport { ports } drop`, `nft add rule ... udp sport { ports } drop`.
    * Usage:
        * `on`: Adds `nftables` rules to drop all UDP traffic on configured QUIC ports.
@@ -457,7 +573,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to create three sets of IP addresses from `config/backbone/ip_reputation.conf`: whitelisted IPs (accepted immediately), blacklisted IPs (dropped), and graylisted IPs (rate-limited and subject to 10% random packet loss). This simulates the outcome of a real-time reputation system using static categorization.
    * Purpose: To simulate tiered filtering based on IP reputation. In reality, IPs would dynamically move between categories based on traffic patterns; here we mock that with a static config file.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add set` (for each tier), `nft add element`, `nft add rule` with accept/drop/rate-limit actions per tier.
    * Usage:
        * `on`: Reads IP categorizations from `ip_reputation.conf` and creates `nftables` rules for each tier.
@@ -470,7 +586,7 @@ explanations:
 
    * Mechanism: It uses the `tc qdisc` (traffic control queueing discipline) command to add a Token Bucket Filter (TBF) to the network interface (`eth1`) connecting to the internal Iranian network. This limits the egress bandwidth from the backbone to a specified rate loaded from `config/backbone/bandwidth_throttling.conf` (defaults to 256kbit).
    * Purpose: To make international connections painfully slow, even if they are not outright blocked. This is a "softer" form of censorship that aims to make services practically unusable for activities like video calls or streaming, achieving the censorship goal through attrition.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `tc qdisc add dev <interface> root tbf rate <rate> latency <latency> burst <burst>` to add a TBF qdisc. `tc qdisc del` to remove it.
    * **Note:** This script is mutually exclusive with 6.5 (DBF) -- both use the root qdisc on the same interface. Enabling one replaces the other.
    * Usage:
@@ -484,7 +600,7 @@ explanations:
 
    * Mechanism: It uses the `tc qdisc` command with the `netem` (network emulator) discipline to inject artificial latency, jitter, and packet loss on the network interface (`eth1`) connecting to the internal Iranian network. Parameters are loaded from `config/backbone/degradation.conf`.
    * Purpose: To simulate a sophisticated form of censorship that doesn't outright block connections but makes them unusable by degrading quality. This aims for "plausible deniability" by making censorship appear as ordinary network instability, frustrating users without providing clear evidence of blocking.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `tc qdisc add dev <interface> root netem delay <delay> <jitter> loss <loss>` to add netem rules. `tc qdisc del` to remove it.
    * **Note:** This script is mutually exclusive with 6.4 (Bandwidth Throttling) -- both use the root qdisc on the same interface. Enabling one replaces the other.
    * Usage:
@@ -496,10 +612,10 @@ explanations:
 
   This script simulates a total national internet shutdown (the "kill switch") at the IXP layer.
 
-   * Mechanism: It uses `nftables` to drop all traffic (both incoming and outgoing) on the interface (`eth1`) connecting the `iran-ixp` to the `iran-isp`. This severs the connection between the IXP and ISPs.
+   * Mechanism: It uses `nftables` to drop all traffic (both incoming and outgoing) on the interface (`eth1`) connecting the `tehran-ix` to the `isp-shatel`. This severs the connection between the IXP and ISPs.
    * Purpose: To simulate a complete national internet blackout, making advanced VPNs and anti-filtering tools useless as there is no path from inside Iran to the global internet. This mechanism can also be used to selectively cut off parts of the network.
    * **Note:** The kill switch operates at the IXP layer (not the backbone) and overrides ALL access, including Tiered Access (7.2) privileged users. This is by design -- a total shutdown affects everyone.
-   * Location: Runs on the `clab-iran-filtering-iran-ixp` container.
+   * Location: Runs on the `clab-iran-filtering-tehran-ix` container.
    * Commands used: `nft add table inet`, `nft add chain inet`, `nft add rule ... iifname <interface> drop`, `nft add rule ... oifname <interface> drop`.
    * Usage:
        * `on`: Activates the kill switch, dropping all traffic on the specified interface.
@@ -512,7 +628,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to define a set of "privileged" IP addresses (`privileged_ips`) from `config/backbone/privileged_ips.conf` and creates a high-priority (`priority -200`) forward chain that marks packets from/to these IPs with `meta mark 0x10`. **All filtering scripts** check for this mark and accept the packet early -- both nftables chains (via `meta mark 0x10 accept`) and iptables custom chains (via `-m mark --mark 0x10 -j ACCEPT`). This two-step approach (mark + check) is necessary because in nftables, an `accept` verdict in one base chain does not prevent evaluation by other base chains at the same hook. The shared mark value and helper functions are defined in `scripts/common.sh`. When 7.2 is enabled after other filters, it injects exemptions into all currently active filtering chains. When filters are enabled after 7.2, they insert their own exemptions via `common.sh` helpers. The only exception is 7.1 (Kill Switch), which overrides everything including privileged access.
    * Purpose: To simulate a model where certain users or entities (e.g., government officials, specific organizations) receive different levels of internet freedom by being whitelisted from general filtering rules, while the general populace remains restricted.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table ip`, `nft add set ip`, `nft add element ip`, `nft add chain ... priority -200` for high-priority marking, `nft add rule ... meta mark set 0x10` for privileged IPs. Injects exemption rules into all active nftables tables and iptables custom chains.
    * Usage:
        * `on`: Reads privileged IPs from `privileged_ips.conf`, creates an `nftables` set, marks privileged traffic, and injects exemption rules into all active filtering chains (both nftables and iptables).
@@ -525,7 +641,7 @@ explanations:
 
    * Mechanism: It uses `nftables` to create a `forward` chain with a default policy of `drop`, meaning all traffic is blocked by default. Then, specific rules are added to explicitly `accept` traffic for whitelisted protocols: DNS (UDP/TCP 53), HTTP (TCP 80), HTTPS (TCP 443), and ICMP (ping). If Tiered Access (7.2) is active, packets marked with the privileged mark (`0x10`) are also accepted, ensuring government officials and other privileged users bypass the default-deny posture.
    * Purpose: To simulate an escalated censorship period where the network switches from allowing everything unless explicitly blocked, to blocking everything unless explicitly allowed. This significantly restricts the types of traffic permitted, rendering most non-standard VPN and proxy protocols unusable.
-   * Location: Runs on the `clab-iran-filtering-iran-backbone` container.
+   * Location: Runs on the `clab-iran-filtering-tic-tehran` container.
    * Commands used: `nft add table`, `nft add chain ... policy drop`, `nft add rule ... accept`, `nft add rule ... meta mark 0x10 accept` (if 7.2 is active).
    * Usage:
        * `on`: Activates the default-deny policy, whitelists specific protocols, and integrates with tiered access if active.

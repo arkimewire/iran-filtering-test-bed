@@ -14,7 +14,7 @@ detect_topology() {
     fi
     if docker inspect --format '{{.State.Running}}' clab-iran-realistic-tic-tehran &>/dev/null; then
         echo "realistic"
-    elif docker inspect --format '{{.State.Running}}' clab-iran-filtering-iran-backbone &>/dev/null; then
+    elif docker inspect --format '{{.State.Running}}' clab-iran-filtering-tic-tehran &>/dev/null; then
         echo "simple"
     else
         echo "ERROR: No topology detected. Deploy a topology first." >&2
@@ -42,18 +42,18 @@ resolve_container() {
                 IXP)           echo "${CLAB_PREFIX}-tehran-ix" ;;
                 CLIENT)        echo "${CLAB_PREFIX}-client-tehran" ;;
                 INTERNET_SRV)  echo "${CLAB_PREFIX}-internet-srv" ;;
-                INTRANET)      echo "${CLAB_PREFIX}-iran-nin" ;;
+                INTRANET)      echo "${CLAB_PREFIX}-aparat-server" ;;
                 *) echo "ERROR: Unknown role '$role'" >&2; return 1 ;;
             esac
             ;;
         *)
             case "$role" in
-                BACKBONE)      echo "${CLAB_PREFIX}-iran-backbone" ;;
-                ISP)           echo "${CLAB_PREFIX}-iran-isp" ;;
-                IXP)           echo "${CLAB_PREFIX}-iran-ixp" ;;
+                BACKBONE)      echo "${CLAB_PREFIX}-tic-tehran" ;;
+                ISP)           echo "${CLAB_PREFIX}-isp-shatel" ;;
+                IXP)           echo "${CLAB_PREFIX}-tehran-ix" ;;
                 CLIENT)        echo "${CLAB_PREFIX}-iran-client" ;;
                 INTERNET_SRV)  echo "${CLAB_PREFIX}-internet-srv" ;;
-                INTRANET)      echo "${CLAB_PREFIX}-iran-intranet" ;;
+                INTRANET)      echo "${CLAB_PREFIX}-aparat-server" ;;
                 *) echo "ERROR: Unknown role '$role'" >&2; return 1 ;;
             esac
             ;;
@@ -82,11 +82,11 @@ resolve_interface() {
             ;;
         *)
             case "${role}:${direction}" in
-                BACKBONE:internal)  echo "eth1" ;;  # iran-backbone toward iran-ixp
-                BACKBONE:external)  echo "eth2" ;;  # iran-backbone toward internet-srv
-                ISP:client)         echo "eth1" ;;  # iran-isp toward iran-client
-                ISP:external)       echo "eth2" ;;  # iran-isp toward iran-ixp
-                IXP:isp)            echo "eth1" ;;  # iran-ixp toward iran-isp
+                BACKBONE:internal)  echo "eth1" ;;  # tic-tehran toward tehran-ix
+                BACKBONE:external)  echo "eth2" ;;  # tic-tehran toward internet-srv
+                ISP:client)         echo "eth1" ;;  # isp-shatel toward iran-client
+                ISP:external)       echo "eth2" ;;  # isp-shatel toward tehran-ix
+                IXP:isp)            echo "eth1" ;;  # tehran-ix toward isp-shatel
                 *) echo "ERROR: Unknown interface '${role}:${direction}'" >&2; return 1 ;;
             esac
             ;;
@@ -132,10 +132,10 @@ resolve_ip() {
 topology_nodes() {
     case "$TOPOLOGY" in
         realistic)
-            echo "internet-srv gw-falcon gw-epeg tic-tehran tic-south tic-west tic-east tehran-ix tci isp-shatel mob-mci ipm-academic client-tehran iran-nin isfahan-ix tci-south isp-south mob-irancell client-south client-province tabriz-ix tci-west isp-west mob-mci-west client-west mashhad-ix tci-east isp-east mob-mci-east client-east"
+            echo "internet-srv gw-falcon gw-epeg tic-tehran tic-south tic-west tic-east tehran-ix tci isp-shatel mob-mci ipm-academic client-tehran aparat-server isfahan-ix tci-south isp-south mob-irancell client-south client-province tabriz-ix tci-west isp-west mob-mci-west client-west mashhad-ix tci-east isp-east mob-mci-east client-east"
             ;;
         *)
-            echo "iran-client iran-isp iran-ixp iran-backbone internet-srv iran-intranet"
+            echo "iran-client isp-shatel tehran-ix tic-tehran internet-srv aparat-server"
             ;;
     esac
 }

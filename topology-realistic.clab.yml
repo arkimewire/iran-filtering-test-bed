@@ -7,11 +7,38 @@ name: iran-realistic
 # All nodes use kind: linux with iran-sim:latest for lightweight operation
 # and full nftables/iptables/tc compatibility.
 #
-# Gateway placement reflects physical cable geography:
+# ── Network Plane Architecture ────────────────────────────────────────────
+#
+# This topology models two distinct traffic planes:
+#
+#   [TRANSIT PLANE] — International traffic path (north-south, TIC-controlled)
+#     client → ISP → wholesale (TCI) → tehran-ix → tic-tehran → tic-south/west → gw-* → internet
+#     Shutdown simulation: blackhole/remove 203.0.113.0/24 routes on tic-tehran.
+#     This is where all 20 filtering mechanisms operate (DPI, SNI, IP blocking, etc.)
+#
+#   [PEERING PLANE] — Domestic traffic path (NIN/intranet, IX-mediated)
+#     client → ISP → wholesale (TCI) → tehran-ix → aparat-server
+#     tehran-ix is DIRECTLY connected to aparat-server (eth3, 10.10.10.0/24).
+#     NIN traffic does NOT pass through tic-tehran; it survives international shutdowns.
+#     This reflects the real-world Jan 2026 behavior: domestic banking/Eitaa/Rubika
+#     remained up while all international transit was severed.
+#
+#   [MOBILE SUBSCRIBER PLANE] — CGNAT behind mob-* nodes
+#     client-province (10.5.1.2) → mob-irancell [MASQUERADE] → tci-south → tic-south → ...
+#     Upstream sees mob-irancell's address (10.4.3.2), not the subscriber IP.
+#     Use scripts/cgnat.sh to enable/disable CGNAT behavior.
+#
+# Note on east-west routing: Inter-regional domestic traffic (south/east/west ↔ NIN)
+# routes via tic-tehran as the hub. This reflects real-world architecture: TIC backbone
+# IS the interconnect between regional IX nodes in Iran. There are no direct IX-to-IX
+# links — TIC controls all inter-city routing by design, which also ensures every
+# cross-regional flow passes through TIC's monitoring and kill-switch infrastructure.
+#
+# ── Gateway placement ─────────────────────────────────────────────────────
 #   gw-falcon -> tic-south  (FALCON submarine cable lands at Bandar Abbas, southern coast)
 #   gw-epeg   -> tic-west   (EPEG terrestrial cable enters from Turkey/Azerbaijan, northwest border near Tabriz)
 #
-# Four TIC backbone regions forming a mesh:
+# ── TIC backbone mesh ─────────────────────────────────────────────────────
 #   tic-tehran  -- Central hub, main DPI/filtering, no direct int'l gateway
 #   tic-south   -- Southern Iran (Isfahan, Shiraz, Bandar Abbas), FALCON gateway
 #   tic-west    -- Northwestern Iran (Tabriz, Urmia), EPEG gateway
@@ -19,18 +46,20 @@ name: iran-realistic
 #
 # Each region has: TIC backbone -> regional IXP -> TCI wholesale -> ISPs -> clients
 #
-# IP addressing scheme:
-#   10.1.x.0/24  -- international gateway links
-#   10.2.x.0/24  -- backbone mesh links
-#   10.3.x.0/24  -- IXP links (backbone <-> IXP, IXP <-> TCI)
+# ── IP addressing scheme ──────────────────────────────────────────────────
+#   10.1.x.0/24  -- international gateway links         [TRANSIT PLANE]
+#   10.2.x.0/24  -- backbone mesh links                 [TRANSIT PLANE]
+#   10.3.1.0/24  -- tehran-ix <-> tic-tehran link       [TRANSIT/PEERING handoff]
+#   10.3.2.0/24  -- tehran-ix <-> tci link              [PEERING PLANE]
+#   10.3.3-5.x/24-- regional IXP links                  [regional transit]
 #   10.4.x.0/24  -- wholesale <-> ISP/mobile links
 #   10.0.1.0/24  -- Tehran client subnet (preserved from simple topology)
-#   10.5.x.0/24  -- regional client subnets
-#   10.10.10.0/24 -- NIN (preserved from simple topology)
-#   203.0.113.0/24 -- simulated internet
+#   10.5.x.0/24  -- regional client subnets (incl. mobile subscriber pools)
+#   10.10.10.0/24 -- NIN (preserved from simple topology)  [PEERING PLANE]
+#   203.0.113.0/24 -- simulated internet                 [TRANSIT PLANE]
 #
 # Key addresses preserved from simple topology:
-#   client-tehran: 10.0.1.2, isp-shatel: 10.0.1.1, internet-srv: 203.0.113.2, iran-nin: 10.10.10.2
+#   client-tehran: 10.0.1.2, isp-shatel: 10.0.1.1, internet-srv: 203.0.113.2, aparat-server: 10.10.10.2
 #
 # Deploy: clab deploy -t topology-realistic.clab.yml
 # Destroy: clab destroy -t topology-realistic.clab.yml
@@ -178,7 +207,7 @@ topology:
         - ip route replace 10.5.4.0/24 via 10.2.1.1
         - ip route replace 10.5.5.0/24 via 10.2.1.1
         # Local downstream via isfahan-ix
-        - ip route replace 10.3.3.0/24 via 10.3.3.2
+        # Note: do NOT replace 10.3.3.0/24 -- kernel connected route must stay intact
         - ip route replace 10.4.3.0/24 via 10.3.3.2
         - ip route replace 10.4.5.0/24 via 10.3.3.2
         - ip route replace 10.5.1.0/24 via 10.3.3.2
@@ -217,7 +246,7 @@ topology:
         - ip route replace 10.5.3.0/24 via 10.2.2.1
         - ip route replace 10.5.5.0/24 via 10.2.2.1
         # Local downstream via tabriz-ix
-        - ip route replace 10.3.4.0/24 via 10.3.4.2
+        # Note: do NOT replace 10.3.4.0/24 -- kernel connected route must stay intact
         - ip route replace 10.4.6.0/24 via 10.3.4.2
         - ip route replace 10.4.7.0/24 via 10.3.4.2
         - ip route replace 10.5.4.0/24 via 10.3.4.2
@@ -235,7 +264,7 @@ topology:
         # Everything upstream: via tic-tehran
         - ip route replace default via 10.2.3.1
         # Local downstream via mashhad-ix
-        - ip route replace 10.3.5.0/24 via 10.3.5.2
+        # Note: do NOT replace 10.3.5.0/24 -- kernel connected route must stay intact
         - ip route replace 10.4.8.0/24 via 10.3.5.2
         - ip route replace 10.4.4.0/24 via 10.3.5.2
         - ip route replace 10.5.5.0/24 via 10.3.5.2
@@ -245,12 +274,19 @@ topology:
     # ══════════════════════════════════════════════════════════════════
 
     # ── Tehran IX ──
+    # [TRANSIT/PEERING handoff node]
+    # eth1 -> tic-tehran: transit plane (international traffic)
+    # eth2 -> tci:        peering plane (domestic wholesale)
+    # eth3 -> aparat-server:   peering plane (NIN directly connected, 10.10.10.0/24)
+    # Key property: NIN (10.10.10.0/24) is reachable WITHOUT going through tic-tehran.
+    # This means international shutdown (removing transit routes on tic-tehran)
+    # does NOT affect NIN reachability from client-tehran.
     tehran-ix:
       kind: linux
       image: iran-sim:latest
-      # eth1: toward tic-tehran  (link 8)
-      # eth2: toward tci         (link 13)
-      # eth3: toward iran-nin    (link 14)
+      # eth1: toward tic-tehran  (link 8)  [TRANSIT PLANE]
+      # eth2: toward tci         (link 13) [PEERING PLANE]
+      # eth3: toward aparat-server    (link 14) [PEERING PLANE - directly connected]
       exec:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.3.1.2/24 dev eth1
@@ -323,7 +359,7 @@ topology:
         - ip route replace default via 10.0.1.1
 
     # ── NIN ── National Information Network (domestic intranet services)
-    iran-nin:
+    aparat-server:
       kind: linux
       image: iran-sim:latest
       # eth1: toward tehran-ix  (link 14)
@@ -341,15 +377,18 @@ topology:
       image: iran-sim:latest
       # eth1: toward tic-south     (link 10)
       # eth2: toward tci-south     (link 18)
+      # Note: both eth1 and eth2 are on 10.3.3.0/24. Linux would route replies to
+      # 10.3.3.4 (tci-south) via eth1 (wrong). Fix: explicit /32 host route via eth2.
       exec:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.3.3.2/24 dev eth1
         - ip addr add 10.3.3.3/24 dev eth2
+        - ip route add 10.3.3.4/32 dev eth2
         - ip route replace default via 10.3.3.1
-        - ip route replace 10.4.3.0/24 via 10.3.3.4
-        - ip route replace 10.4.5.0/24 via 10.3.3.4
-        - ip route replace 10.5.1.0/24 via 10.3.3.4
-        - ip route replace 10.5.3.0/24 via 10.3.3.4
+        - ip route replace 10.4.3.0/24 via 10.3.3.4 dev eth2
+        - ip route replace 10.4.5.0/24 via 10.3.3.4 dev eth2
+        - ip route replace 10.5.1.0/24 via 10.3.3.4 dev eth2
+        - ip route replace 10.5.3.0/24 via 10.3.3.4 dev eth2
 
     # ── TCI South (AS58224) ── TCI wholesale presence in southern region
     tci-south:
@@ -381,11 +420,16 @@ topology:
 
     # ── IranCell (AS44244) ── Second mobile operator (southern/provincial)
     # CEO replaced Jan 18, 2026 for resisting shutdown orders (FilterWatch)
+    # [MOBILE SUBSCRIBER PLANE]
+    # CGNAT: use scripts/cgnat.sh on/off to enable carrier-grade NAT.
+    #   eth1 (10.4.3.2) is the upstream/routable interface (MASQUERADE applied here).
+    #   eth2 (10.5.1.1) is the subscriber-facing interface (pool: 10.5.1.0/24).
+    #   When CGNAT is ON: internet-srv sees 10.4.3.2, not 10.5.1.2; inbound NEW blocked.
     mob-irancell:
       kind: linux
       image: iran-sim:latest
-      # eth1: toward tci-south         (link 20)
-      # eth2: toward client-province   (link 22)
+      # eth1: toward tci-south         (link 20) [upstream - CGNAT MASQUERADE here]
+      # eth2: toward client-province   (link 22) [subscriber pool 10.5.1.0/24]
       exec:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.4.3.2/24 dev eth1
@@ -420,14 +464,16 @@ topology:
       image: iran-sim:latest
       # eth1: toward tic-west     (link 11)
       # eth2: toward tci-west     (link 23)
+      # Note: both eth1 and eth2 are on 10.3.4.0/24. Fix: explicit /32 host route via eth2.
       exec:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.3.4.2/24 dev eth1
         - ip addr add 10.3.4.3/24 dev eth2
+        - ip route add 10.3.4.4/32 dev eth2
         - ip route replace default via 10.3.4.1
-        - ip route replace 10.4.6.0/24 via 10.3.4.4
-        - ip route replace 10.4.7.0/24 via 10.3.4.4
-        - ip route replace 10.5.4.0/24 via 10.3.4.4
+        - ip route replace 10.4.6.0/24 via 10.3.4.4 dev eth2
+        - ip route replace 10.4.7.0/24 via 10.3.4.4 dev eth2
+        - ip route replace 10.5.4.0/24 via 10.3.4.4 dev eth2
 
     # ── TCI West (AS58224) ── TCI wholesale presence in western region
     tci-west:
@@ -485,14 +531,16 @@ topology:
       image: iran-sim:latest
       # eth1: toward tic-east     (link 12)
       # eth2: toward tci-east     (link 27)
+      # Note: both eth1 and eth2 are on 10.3.5.0/24. Fix: explicit /32 host route via eth2.
       exec:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.3.5.2/24 dev eth1
         - ip addr add 10.3.5.3/24 dev eth2
+        - ip route add 10.3.5.4/32 dev eth2
         - ip route replace default via 10.3.5.1
-        - ip route replace 10.4.8.0/24 via 10.3.5.4
-        - ip route replace 10.4.4.0/24 via 10.3.5.4
-        - ip route replace 10.5.5.0/24 via 10.3.5.4
+        - ip route replace 10.4.8.0/24 via 10.3.5.4 dev eth2
+        - ip route replace 10.4.4.0/24 via 10.3.5.4 dev eth2
+        - ip route replace 10.5.5.0/24 via 10.3.5.4 dev eth2
 
     # ── TCI East (AS58224) ── TCI wholesale presence in eastern region
     tci-east:
@@ -547,19 +595,19 @@ topology:
   # Link order determines ethN assignment.
 
   links:
-    # ── International ──
+    # ── [TRANSIT PLANE] International ──
     # Link 1:  internet-srv <-> gw-falcon
     - endpoints: ["internet-srv:eth1", "gw-falcon:eth1"]
     # Link 2:  internet-srv <-> gw-epeg
     - endpoints: ["internet-srv:eth2", "gw-epeg:eth1"]
 
-    # ── Border -> Regional backbone ──
+    # ── [TRANSIT PLANE] Border -> Regional backbone ──
     # Link 3:  gw-falcon <-> tic-south    (FALCON lands in south)
     - endpoints: ["gw-falcon:eth2", "tic-south:eth1"]
     # Link 4:  gw-epeg <-> tic-west       (EPEG enters from northwest)
     - endpoints: ["gw-epeg:eth2", "tic-west:eth1"]
 
-    # ── Backbone mesh ──
+    # ── [TRANSIT PLANE] Backbone mesh ──
     # Link 5:  tic-south <-> tic-tehran
     - endpoints: ["tic-south:eth2", "tic-tehran:eth1"]
     # Link 6:  tic-west <-> tic-tehran
@@ -567,23 +615,24 @@ topology:
     # Link 7:  tic-east <-> tic-tehran
     - endpoints: ["tic-east:eth1", "tic-tehran:eth3"]
 
-    # ── Tehran region ──
-    # Link 8:  tic-tehran <-> tehran-ix
+    # ── [TRANSIT/PEERING handoff] Tehran region backbone<->IX ──
+    # Link 8:  tic-tehran <-> tehran-ix  (transit traffic enters IX here)
     - endpoints: ["tic-tehran:eth4", "tehran-ix:eth1"]
-    # Link 9:  tic-tehran <-> ipm-academic
+    # Link 9:  tic-tehran <-> ipm-academic  (academic gateway, separate path)
     - endpoints: ["tic-tehran:eth5", "ipm-academic:eth1"]
-    # Link 10: tic-south <-> isfahan-ix
+    # Link 10: tic-south <-> isfahan-ix  (regional transit<->IX)
     - endpoints: ["tic-south:eth3", "isfahan-ix:eth1"]
-    # Link 11: tic-west <-> tabriz-ix
+    # Link 11: tic-west <-> tabriz-ix    (regional transit<->IX)
     - endpoints: ["tic-west:eth3", "tabriz-ix:eth1"]
-    # Link 12: tic-east <-> mashhad-ix
+    # Link 12: tic-east <-> mashhad-ix   (regional transit<->IX)
     - endpoints: ["tic-east:eth2", "mashhad-ix:eth1"]
 
-    # ── Tehran IXP -> wholesale -> ISP ──
-    # Link 13: tehran-ix <-> tci
+    # ── [PEERING PLANE] Tehran IX -> wholesale -> ISP ──
+    # Link 13: tehran-ix <-> tci          (domestic peering: IX to wholesale)
     - endpoints: ["tehran-ix:eth2", "tci:eth1"]
-    # Link 14: tehran-ix <-> iran-nin
-    - endpoints: ["tehran-ix:eth3", "iran-nin:eth1"]
+    # Link 14: tehran-ix <-> aparat-server     (domestic peering: IX to NIN directly)
+    # NOTE: This direct link is why NIN survives international transit shutdown.
+    - endpoints: ["tehran-ix:eth3", "aparat-server:eth1"]
     # Link 15: tci <-> isp-shatel
     - endpoints: ["tci:eth2", "isp-shatel:eth2"]
     # Link 16: tci <-> mob-mci

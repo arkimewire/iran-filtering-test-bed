@@ -6,7 +6,7 @@ All 20 filtering scripts in `scripts/` SHALL replace their hardcoded `CONTAINER_
 #### Scenario: Backbone filtering script on simple topology
 - **WHEN** simple topology is active
 - **AND** user runs `./scripts/3.1-ip-blocking.sh on`
-- **THEN** the script applies nftables rules to `clab-iran-filtering-iran-backbone`
+- **THEN** the script applies nftables rules to `clab-iran-filtering-tic-tehran`
 - **AND** behavior is identical to the current hardcoded implementation
 
 #### Scenario: Backbone filtering script on realistic topology
@@ -18,7 +18,7 @@ All 20 filtering scripts in `scripts/` SHALL replace their hardcoded `CONTAINER_
 #### Scenario: ISP filtering script on simple topology
 - **WHEN** simple topology is active
 - **AND** user runs `./scripts/1.1-dns-hijacking.sh on`
-- **THEN** the script applies rules to `clab-iran-filtering-iran-isp` on interface `eth1`
+- **THEN** the script applies rules to `clab-iran-filtering-isp-shatel` on interface `eth1`
 
 #### Scenario: ISP filtering script on realistic topology
 - **WHEN** realistic topology is active
@@ -28,7 +28,7 @@ All 20 filtering scripts in `scripts/` SHALL replace their hardcoded `CONTAINER_
 #### Scenario: Kill switch script on simple topology
 - **WHEN** simple topology is active
 - **AND** user runs `./scripts/7.1-kill-switch.sh on`
-- **THEN** the script applies nftables drop rules to `clab-iran-filtering-iran-ixp` on interface `eth1`
+- **THEN** the script applies nftables drop rules to `clab-iran-filtering-tehran-ix` on interface `eth1`
 
 #### Scenario: Kill switch script on realistic topology
 - **WHEN** realistic topology is active
@@ -51,12 +51,12 @@ All 20 filtering scripts in `scripts/` SHALL replace their hardcoded `CONTAINER_
 - **THEN** the same config files are used regardless of which topology is active
 
 ### Requirement: common.sh preserves existing functionality
-The existing `PRIV_MARK`, `is_tiered_access_active()`, and `nft_insert_priv_exemption()` functions in `common.sh` SHALL continue to work correctly. The `is_tiered_access_active()` function SHALL accept an optional container parameter and default to the resolved BACKBONE container (currently defaults to `clab-iran-filtering-iran-backbone`).
+The existing `PRIV_MARK`, `is_tiered_access_active()`, and `nft_insert_priv_exemption()` functions in `common.sh` SHALL continue to work correctly. The `is_tiered_access_active()` function SHALL accept an optional container parameter and default to the resolved BACKBONE container (currently defaults to `clab-iran-filtering-tic-tehran`).
 
 #### Scenario: Tiered access check on simple topology
 - **WHEN** simple topology is active
 - **AND** `is_tiered_access_active` is called without arguments
-- **THEN** it checks `clab-iran-filtering-iran-backbone` for the `global_whitelist` table
+- **THEN** it checks `clab-iran-filtering-tic-tehran` for the `global_whitelist` table
 
 #### Scenario: Tiered access check on realistic topology
 - **WHEN** realistic topology is active
