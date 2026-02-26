@@ -24,7 +24,7 @@ name: iran-realistic
 #     remained up while all international transit was severed.
 #
 #   [MOBILE SUBSCRIBER PLANE] — CGNAT behind mob-* nodes
-#     client-province (10.5.1.2) → mob-irancell [MASQUERADE] → tci-south → tic-south → ...
+#     client-mobile (10.5.1.2) → mob-irancell [MASQUERADE] → tci-south → tic-south → ...
 #     Upstream sees mob-irancell's address (10.4.3.2), not the subscriber IP.
 #     Use scripts/cgnat.sh to enable/disable CGNAT behavior.
 #
@@ -429,7 +429,7 @@ topology:
       kind: linux
       image: iran-sim:latest
       # eth1: toward tci-south         (link 20) [upstream - CGNAT MASQUERADE here]
-      # eth2: toward client-province   (link 22) [subscriber pool 10.5.1.0/24]
+      # eth2: toward client-mobile     (link 22) [subscriber pool 10.5.1.0/24]
       exec:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.4.3.2/24 dev eth1
@@ -446,7 +446,7 @@ topology:
         - ip route replace default via 10.5.3.1
 
     # ── Client Province ── Mobile end user via IranCell (southern)
-    client-province:
+    client-mobile:
       kind: linux
       image: iran-sim:latest
       # eth1: toward mob-irancell  (link 22)
@@ -649,8 +649,8 @@ topology:
     - endpoints: ["tci-south:eth3", "mob-irancell:eth1"]
     # Link 21: isp-south <-> client-south
     - endpoints: ["isp-south:eth1", "client-south:eth1"]
-    # Link 22: mob-irancell <-> client-province
-    - endpoints: ["mob-irancell:eth2", "client-province:eth1"]
+    # Link 22: mob-irancell <-> client-mobile
+    - endpoints: ["mob-irancell:eth2", "client-mobile:eth1"]
 
     # ── West IXP -> wholesale -> ISP ──
     # Link 23: tabriz-ix <-> tci-west

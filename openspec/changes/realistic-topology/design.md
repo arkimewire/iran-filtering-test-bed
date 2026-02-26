@@ -150,7 +150,7 @@ Health check nodes are listed per topology. Filtering tests use the same script 
 
 ## Open Questions
 
-1. **Provincial client routing:** Should `client-province` route through `mob-irancell` -> `tic-south` -> `tic-tehran` or through `mob-irancell` -> `tci` -> `tic-tehran`? Current design uses the former (regional backbone path). The choice affects whether regional shutdown tests work.
+1. **Mobile client routing:** Should `client-mobile` route through `mob-irancell` -> `tic-south` -> `tic-tehran` or through `mob-irancell` -> `tci` -> `tic-tehran`? Current design uses the former (regional backbone path). The choice affects whether regional shutdown tests work.
    → **Resolution:** Route through `tic-south` to enable regional shutdown simulation.
 
 2. **DNS hijacking on multiple ISPs:** In the realistic topology, should `1.1-dns-hijacking.sh` apply to ALL ISP nodes (`isp-shatel`, `mob-mci`, `mob-irancell`) or just the primary one (`isp-shatel`)? Applying to all is more realistic but makes the script more complex.

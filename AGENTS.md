@@ -30,7 +30,7 @@ i'm not insisting to make this lab a complete 1-1 mapping of the real world, as 
   - each ISP site is connected to several end users (home users, business users, ...)
   - each brand might have their own filtering infrastructure (GFW)
   - END USERS are connected to the ISP sites, through wired or wireless links
-- mobile carriers: a specialized ISP type that applies **CGNAT** (carrier-grade NAT) to subscriber traffic. simulated by `mob-irancell`, `mob-mci`, `mob-mci-west`, `mob-mci-east` in the realistic topology, and `iran-mobile` (Android device) in both topologies. CGNAT means the internet sees the carrier's shared IP, not the subscriber's actual address.
+- mobile carriers: a specialized ISP type that applies **CGNAT** (carrier-grade NAT) to subscriber traffic. simulated by `mob-irancell`, `mob-mci`, `mob-mci-west`, `mob-mci-east` in the realistic topology. CGNAT means the internet sees the carrier's shared IP, not the subscriber's actual address.
 - NIN domestic content: servers directly connected to IXPs (not through TIC backbone). these survive international shutdowns because they never need TIC for local reachability. simulated by `aparat-server`.
 
 ## so we would have this setup in abstract:
@@ -41,8 +41,8 @@ i'm not insisting to make this lab a complete 1-1 mapping of the real world, as 
 4. IXPs (Tehran IX, Isfahan IX, Tabriz IX, Mashhad IX) → `tehran-ix` (+`isfahan-ix`, `tabriz-ix`, `mashhad-ix` in realistic) [TRANSIT/PEERING handoff]
 5. wholesale/transit aggregation (TCI, AS58224) → `tci` (+`tci-south`, `tci-west`, `tci-east` in realistic)
 6. ISPs (Shatel, Mokhaberat, ...) → `isp-shatel` (+`isp-south`, `isp-west`, `isp-east` in realistic) [PEERING PLANE]
-7. mobile carriers (IranCell, MCI, ...) → `mob-irancell`, `mob-mci`, etc. (realistic) / `iran-mobile` (simple) [MOBILE SUBSCRIBER PLANE]
-8. end users → `iran-client` (simple), `client-tehran/south/west/east/province` (realistic)
+7. mobile carriers (IranCell, MCI, ...) → `mob-irancell`, `mob-mci`, etc. (realistic) [MOBILE SUBSCRIBER PLANE]
+8. end users → `iran-client`, `client-android` (simple), `client-tehran/south/west/east/mobile` (realistic)
 9. NIN domestic content (directly on IXP, no TIC path) → `aparat-server` [PEERING PLANE]
 
 the simple topology (`topology.clab.yml`) collapses layers 2, 5 and most of 7 for lightweight testing, keeping the key structural relationships intact. the realistic topology (`topology-realistic.clab.yml`) models all layers across 4 regions.
@@ -82,6 +82,21 @@ this is the key insight: **a domestic content server connected directly to an IX
 ### analogy
 
 think of transit like buying a multi-hop airline ticket through a hub: you pay, the journey is long, and if the main hub shuts down, you are stuck. peering is like a direct shuttle between two nearby cities: it is free between the parties, faster, and completely independent of the main airline hub.
+
+### CGNAT: The Mobile Network Fortress
+
+**CGNAT (Carrier-Grade NAT)** is a large-scale network address translation method used by mobile carriers (like MTN Irancell and MCI) to handle IPv4 address exhaustion. While standard home routers perform NAT for a few devices, CGNAT does this for thousands of mobile subscribers simultaneously.
+
+#### How it works:
+1.  **IP Sharing:** Thousands of subscribers are assigned private, non-routable internal IPs (e.g., in the `10.x.x.x` range). When they access the internet, their traffic is mapped to a single public IP address shared by the entire pool.
+2.  **Stateful Isolation:** The carrier's gateway maintains a state table of outgoing connections. It only allows incoming traffic if it matches an existing entry in this table (i.e., it's a response to a subscriber's request).
+3.  **Inbound Blocking:** By default, any "unsolicited" inbound traffic (a new connection initiated from the internet toward a subscriber) is dropped. This means a mobile phone on a CGNAT network has no "reachable" public presence.
+
+#### Impact on VPNs and Circumvention:
+-   **Inbound Restriction:** You cannot host a VPN server directly on a mobile connection. Since the carrier blocks unsolicited inbound packets, a client from the internet cannot "find" or "connect" to a mobile-hosted server.
+-   **Peer-to-Peer (P2P) Challenges:** Protocols that rely on direct device-to-device communication (like ZeroTier, Tailscale, or certain gaming protocols) often struggle or fail behind CGNAT because they cannot establish a direct "hole-punch" through the carrier's strict NAT layer.
+-   **Identification vs. Anonymity:** While CGNAT makes it harder for the GFW to identify a *specific* user by IP alone (since many share one), it makes it easier to block *thousands* of users at once. If the GFW identifies a single "suspicious" VPN tunnel exiting from a carrier's shared IP, it might decide to throttle or block that entire IP, affecting every other innocent subscriber sharing it.
+-   **Session Timeouts:** CGNAT gateways often have aggressive timeout policies for UDP and TCP sessions to save memory. This can cause "zombie" VPN connections where the client thinks it's connected, but the carrier has already closed the NAT mapping, requiring frequent keep-alive packets that increase the VPN's battery consumption and traffic signature.
 
 ### how this maps to the realistic topology
 
@@ -292,8 +307,8 @@ Note: TCI (Telecommunications Company of Iran, state-owned fixed-line incumbent)
 - `isp-east` `(R)` — Mokhaberat East. Fixed-line ISP in Mashhad region. Connects to `tci-east`.
 
 #### mobile carriers [MOBILE SUBSCRIBER PLANE]
-- `iran-mobile` `(S)` — Android-based end user (`redroid/redroid:14.0.0-latest` image). Connects to `isp-shatel` as a mobile subscriber. Conditionally enabled via `IRAN_MOBILE=true`.
-- `mob-irancell` `(R)` — IranCell (AS44244). Second mobile operator (southern/provincial). Applies CGNAT (`scripts/cgnat.sh`): MASQUERADE on upstream interface, blocks unsolicited inbound. CEO replaced Jan 18, 2026 for resisting shutdown orders (FilterWatch). Connects subscribers (`client-province`) to `tci-south`.
+- `client-android` `(S)` — Android-based end user (`redroid/redroid:14.0.0-latest` image). Connects to `isp-shatel` as a mobile subscriber. Conditionally enabled via `IRAN_MOBILE=true`.
+- `mob-irancell` `(R)` — IranCell (AS44244). Second mobile operator (southern/provincial). Applies CGNAT (`scripts/cgnat.sh`): MASQUERADE on upstream interface, blocks unsolicited inbound. CEO replaced Jan 18, 2026 for resisting shutdown orders (FilterWatch). Connects subscribers (`client-mobile`) to `tci-south`.
 - `mob-mci` `(R)` — MCI / Hamrah Aval Tehran (AS197207). Largest mobile operator. Connects to `tci`.
 - `mob-mci-west` `(R)` — MCI mobile presence in Tabriz. Connects to `tci-west`.
 - `mob-mci-east` `(R)` — MCI mobile presence in Mashhad. Connects to `tci-east`.
@@ -304,7 +319,7 @@ Note: TCI (Telecommunications Company of Iran, state-owned fixed-line incumbent)
 - `client-south` `(R)` — Fixed-line end user in Isfahan via `isp-south`.
 - `client-west` `(R)` — Fixed-line end user in Tabriz via `isp-west`.
 - `client-east` `(R)` — Fixed-line end user in Mashhad via `isp-east`.
-- `client-province` `(R)` — Mobile end user in the southern subscriber pool via `mob-irancell`.
+- `client-mobile` `(R)` — Mobile end user (Android subscriber) in the southern subscriber pool via `mob-irancell`.
 
 #### NIN domestic content server [PEERING PLANE]
 - `aparat-server` — NIN domestic content server (Aparat/Rubika equivalent). Connected **directly** to `tehran-ix` (eth3, 10.10.10.0/24). Has no path through `tic-tehran`. Remains reachable during international transit shutdowns (reflects Jan 2026 behavior: domestic banking/Eitaa/Rubika stayed up while all international transit was severed).
@@ -345,7 +360,7 @@ Note that this requires a host with **KVM support**.
 
 **realistic topology (`topology-realistic.clab.yml`):**
 - international (transit, Tehran): `client-tehran → isp-shatel → tci → tehran-ix → tic-tehran → tic-south → gw-falcon → internet-srv` [TRANSIT PLANE]
-- international (transit, south): `client-province → mob-irancell [CGNAT] → tci-south → isfahan-ix → tic-south → gw-falcon → internet-srv`
+- international (transit, south): `client-mobile → mob-irancell [CGNAT] → tci-south → isfahan-ix → tic-south → gw-falcon → internet-srv`
 - domestic NIN (peering): `client-tehran → isp-shatel → tci → tehran-ix → aparat-server` [PEERING PLANE]
 - cross-regional domestic: `client-south → isp-south → tci-south → isfahan-ix → tic-south → tic-tehran → tehran-ix → aparat-server` (east-west via tic-tehran hub)
 

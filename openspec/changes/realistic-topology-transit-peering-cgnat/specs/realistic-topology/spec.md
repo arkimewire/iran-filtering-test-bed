@@ -24,27 +24,27 @@ All `mob-*` nodes in the realistic topology SHALL perform Carrier-Grade NAT (CGN
 
 #### Scenario: Mobile client reaches internet with NATed address
 - **WHEN** CGNAT is enabled on `mob-irancell`
-- **AND** `client-province` (on subscriber pool subnet) sends a packet to `internet-srv`
+- **AND** `client-mobile` (on subscriber pool subnet) sends a packet to `internet-srv`
 - **THEN** `internet-srv` sees source IP as the upstream-facing address of `mob-irancell`
-- **AND** `client-province`'s original subscriber IP is NOT visible at `internet-srv`
+- **AND** `client-mobile`'s original subscriber IP is NOT visible at `internet-srv`
 
 #### Scenario: Unsolicited inbound connection to mobile subscriber fails
 - **WHEN** CGNAT is enabled on `mob-irancell`
-- **AND** an external host attempts to initiate a TCP connection directly to `client-province`'s subscriber IP
+- **AND** an external host attempts to initiate a TCP connection directly to `client-mobile`'s subscriber IP
 - **THEN** the connection fails (no route or DNAT)
-- **AND** `client-province` receives no traffic from the attempt
+- **AND** `client-mobile` receives no traffic from the attempt
 
 #### Scenario: CGNAT is togglable without service disruption
 - **WHEN** `scripts/cgnat.sh off` is run
 - **THEN** CGNAT rules are removed from all `mob-*` nodes
-- **AND** `client-province` can communicate using its subscriber IP directly (if routed)
+- **AND** `client-mobile` can communicate using its subscriber IP directly (if routed)
 - **WHEN** `scripts/cgnat.sh on` is run
 - **THEN** CGNAT is restored
 
 #### Scenario: Existing filtering mechanisms work through CGNAT
 - **WHEN** CGNAT is enabled on `mob-irancell`
 - **AND** a filtering mechanism (e.g., SNI filtering, DNS hijacking) is active on the backbone
-- **THEN** filtering behavior is unchanged for traffic originating from `client-province`
+- **THEN** filtering behavior is unchanged for traffic originating from `client-mobile`
 
 ### Requirement: East-west domestic reachability
 Regional domestic traffic (between different regions) SHALL be routable via domestic paths without mandatory hairpin through the international transit plane.

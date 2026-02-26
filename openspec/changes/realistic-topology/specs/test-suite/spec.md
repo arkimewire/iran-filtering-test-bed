@@ -52,7 +52,7 @@ Section 1 (container health) SHALL check all nodes present in the active topolog
 
 #### Scenario: Health check for realistic topology
 - **WHEN** realistic topology is active
-- **THEN** section 1 checks all ~15 nodes including `tic-tehran`, `gw-falcon`, `gw-epeg`, `tic-south`, `tic-east`, `tehran-ix`, `tci`, `isp-shatel`, `mob-mci`, `mob-irancell`, `client-tehran`, `client-province`, `internet-srv`, `aparat-server`, `ipm-academic`
+- **THEN** section 1 checks all ~15 nodes including `tic-tehran`, `gw-falcon`, `gw-epeg`, `tic-south`, `tic-east`, `tehran-ix`, `tci`, `isp-shatel`, `mob-mci`, `mob-irancell`, `client-tehran`, `client-mobile`, `internet-srv`, `aparat-server`, `ipm-academic`
 
 ### Requirement: test.sh filtering tests use script abstraction
 Filtering mechanism tests (sections 5-25) SHALL invoke the same `./scripts/*.sh` scripts and verify behavior through the topology abstraction. The scripts themselves handle topology detection; test.sh only needs to verify outcomes from the correct client/server containers.

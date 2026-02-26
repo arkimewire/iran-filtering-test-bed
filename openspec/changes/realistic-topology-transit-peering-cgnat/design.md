@@ -55,7 +55,7 @@ This means adjusting routing in the current topology so that:
 
 ### D3: Mobile CGNAT design
 ```
-[client-province / client-mobile]   (e.g., 10.5.1.0/24 - subscriber pool)
+[client-mobile]   (e.g., 10.5.1.0/24 - subscriber pool)
          ↓
 [mob-irancell]  ← CGNAT here (MASQUERADE on upstream interface)
          ↓

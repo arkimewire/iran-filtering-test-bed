@@ -35,11 +35,11 @@ The topology SHALL include a TIC core node (`tic-tehran`) and multiple regional 
 
 #### Scenario: Regional backbone provides provincial connectivity
 - **WHEN** the topology is deployed
-- **THEN** `client-province` reaches `internet-srv` via a path through a regional TIC node (`tic-south`) and then `tic-tehran`
+- **THEN** `client-mobile` reaches `internet-srv` via a path through a regional TIC node (`tic-south`) and then `tic-tehran`
 
 #### Scenario: Regional shutdown isolates provincial users
 - **WHEN** the link between `tic-tehran` and `tic-south` is severed
-- **THEN** `client-province` (connected via `tic-south`) loses connectivity to `internet-srv`
+- **THEN** `client-mobile` (connected via `tic-south`) loses connectivity to `internet-srv`
 - **AND** `client-tehran` retains full connectivity to `internet-srv`
 
 ### Requirement: Tehran IX for domestic traffic exchange
@@ -63,7 +63,7 @@ The topology SHALL include distinct nodes for: `tci` (fixed-line wholesale, AS58
 
 #### Scenario: Provincial user routes through mobile operator
 - **WHEN** the topology is deployed
-- **THEN** `client-province` reaches `internet-srv` via `mob-irancell` -> regional TIC node -> `tic-tehran`
+- **THEN** `client-mobile` reaches `internet-srv` via `mob-irancell` -> regional TIC node -> `tic-tehran`
 
 ### Requirement: IPM academic gateway
 The topology SHALL include an `ipm-academic` node (representing AS6736) with a separate link to `tic-tehran`, representing the independent academic gateway to the international internet.

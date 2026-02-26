@@ -928,7 +928,7 @@ echo "=== 28. Mobile CGNAT ==="
 # (realistic topology only)
 # ---------------------------------------------------------------------------
 
-PROVINCE_CLIENT="${CLAB_PREFIX}-client-province"
+PROVINCE_CLIENT="${CLAB_PREFIX}-client-mobile"
 MOB_IRANCELL="${CLAB_PREFIX}-mob-irancell"
 INTERNET_SRV_C=$(resolve_container INTERNET_SRV)
 
@@ -941,21 +941,21 @@ assert_contains "28 ON" "ON" "$(./scripts/cgnat.sh status)"
 CGNAT_TABLE=$(docker exec "$MOB_IRANCELL" nft list table ip cgnat 2>/dev/null || true)
 assert_contains "28 ON: cgnat nftables table exists on mob-irancell" "masquerade" "$CGNAT_TABLE"
 
-# Verify subscriber (client-province) can still reach internet when CGNAT is on
-assert_pass "28 ON: client-province can reach internet-srv via CGNAT" \
+# Verify subscriber (client-mobile) can still reach internet when CGNAT is on
+assert_pass "28 ON: client-mobile can reach internet-srv via CGNAT" \
     docker exec "$PROVINCE_CLIENT" ping -c1 -W5 203.0.113.2
 
 # Verify inbound: unsolicited NEW connection to subscriber IP should be blocked
-# internet-srv attempts to reach client-province directly (10.5.1.2)
+# internet-srv attempts to reach client-mobile directly (10.5.1.2)
 # The CGNAT forward_filter drops ct state new on mob-irancell eth1 toward 10.5.1.0/24
-assert_fail "28 ON: unsolicited inbound to client-province (10.5.1.2) is blocked" \
+assert_fail "28 ON: unsolicited inbound to client-mobile (10.5.1.2) is blocked" \
     docker exec "$INTERNET_SRV_C" ping -c1 -W3 10.5.1.2
 
 ./scripts/cgnat.sh off > /dev/null
 assert_contains "28 OFF after disable" "OFF" "$(./scripts/cgnat.sh status)"
 
 # Verify reachability still works after CGNAT off
-assert_pass "28 OFF: client-province still reachable after CGNAT off" \
+assert_pass "28 OFF: client-mobile still reachable after CGNAT off" \
     docker exec "$PROVINCE_CLIENT" ping -c1 -W5 203.0.113.2
 
 # ---------------------------------------------------------------------------
@@ -968,7 +968,7 @@ echo "=== 29. East-West Domestic Reachability ==="
 SOUTH_CLIENT="${CLAB_PREFIX}-client-south"
 EAST_CLIENT="${CLAB_PREFIX}-client-east"
 WEST_CLIENT="${CLAB_PREFIX}-client-west"
-PROVINCE_CLIENT="${CLAB_PREFIX}-client-province"
+PROVINCE_CLIENT="${CLAB_PREFIX}-client-mobile"
 NIN_IP="10.10.10.2"
 
 assert_pass "29: client-south can reach aparat-server ($NIN_IP)" \
@@ -980,7 +980,7 @@ assert_pass "29: client-east can reach aparat-server ($NIN_IP)" \
 assert_pass "29: client-west can reach aparat-server ($NIN_IP)" \
     docker exec "$WEST_CLIENT" ping -c1 -W5 "$NIN_IP"
 
-assert_pass "29: client-province can reach aparat-server ($NIN_IP)" \
+assert_pass "29: client-mobile can reach aparat-server ($NIN_IP)" \
     docker exec "$PROVINCE_CLIENT" ping -c1 -W5 "$NIN_IP"
 
 fi  # end realistic-topology-only tests

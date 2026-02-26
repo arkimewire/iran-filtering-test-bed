@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 #
-# Build the EthernetOverlay APK for the iran-mobile (redroid) node.
+# Build the EthernetOverlay APK for the client-android (redroid) node.
 #
 # Prerequisites (installed in .devcontainer/Dockerfile):
 #   - Android SDK build-tools (aapt2, apksigner)

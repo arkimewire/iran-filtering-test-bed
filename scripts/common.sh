@@ -132,7 +132,7 @@ resolve_ip() {
 topology_nodes() {
     case "$TOPOLOGY" in
         realistic)
-            echo "internet-srv gw-falcon gw-epeg tic-tehran tic-south tic-west tic-east tehran-ix tci isp-shatel mob-mci ipm-academic client-tehran aparat-server isfahan-ix tci-south isp-south mob-irancell client-south client-province tabriz-ix tci-west isp-west mob-mci-west client-west mashhad-ix tci-east isp-east mob-mci-east client-east"
+            echo "internet-srv gw-falcon gw-epeg tic-tehran tic-south tic-west tic-east tehran-ix tci isp-shatel mob-mci ipm-academic client-tehran aparat-server isfahan-ix tci-south isp-south mob-irancell client-south client-mobile tabriz-ix tci-west isp-west mob-mci-west client-west mashhad-ix tci-east isp-east mob-mci-east client-east"
             ;;
         *)
             echo "iran-client isp-shatel tehran-ix tic-tehran internet-srv aparat-server"

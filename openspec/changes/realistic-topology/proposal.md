@@ -34,7 +34,7 @@ A second, more realistic topology file enables testing scenarios the simple topo
 | Mobile | `mob-mci` | MCI / Hamrah Aval | AS197207 -- largest mobile operator |
 | Mobile | `mob-irancell` | IranCell | AS44244 -- second mobile operator |
 | End User | `client-tehran` | Tehran end user | Fixed-line + mobile access |
-| End User | `client-province` | Provincial end user | Represents non-Tehran users |
+| End User | `client-mobile` | Mobile end user (Android subscriber) | Represents non-Tehran mobile users |
 | Domestic | `aparat-server` | NIN domestic services | ArvanCloud CDN, banking, Eitaa, Rubika |
 | Academic | `ipm-academic` | IPM / Fundamental Sciences Institute | AS6736 -- academic gateway (minor) |
 

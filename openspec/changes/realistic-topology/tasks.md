@@ -65,7 +65,7 @@
 - [x] 6.4 Verify all nodes are running (all linux kind)
 - [x] 6.5 Verify forwarding nodes have correct IP routing and NAT
 - [x] 6.6 Verify end-to-end connectivity: `client-tehran` -> `internet-srv` and `client-tehran` -> `aparat-server`
-- [x] 6.7 Verify `client-province` -> `internet-srv` via regional backbone path
+- [x] 6.7 Verify `client-mobile` -> `internet-srv` via regional backbone path
 - [x] 6.8 Verify real internet access: `client-tehran` can ping `1.1.1.1`
 - [x] 6.9 Run `test.sh` against realistic topology -- all 26 sections must pass
 - [x] 6.10 Destroy realistic topology, deploy simple topology, run `test.sh` -- confirm simple topology still passes

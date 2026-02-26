@@ -39,7 +39,7 @@ name: iran-filtering
 #   10.0.1.0/24   — iran-client ↔ isp-shatel        (client subnet)
 #   10.0.2.0/24   — isp-shatel ↔ tehran-ix           [PEERING PLANE]
 #   10.0.3.0/24   — tehran-ix ↔ tic-tehran           [TRANSIT/PEERING handoff]
-#   10.0.4.0/24   — isp-shatel ↔ iran-mobile         (mobile subscriber subnet)
+#   10.0.4.0/24   — isp-shatel ↔ client-android      (mobile subscriber subnet)
 #   10.10.10.0/24 — tehran-ix ↔ aparat-server        [PEERING PLANE / NIN]
 #   203.0.113.0/24 — tic-tehran ↔ internet-srv       [TRANSIT PLANE]
 #
@@ -74,7 +74,7 @@ topology:
         - sysctl -w net.ipv4.ip_forward=1
         - ip addr add 10.0.1.1/24 dev eth1  # toward iran-client
         - ip addr add 10.0.2.2/24 dev eth2  # toward tehran-ix   [PEERING PLANE]
-        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip addr add 10.0.4.1/24 dev eth3; fi'  # toward iran-mobile
+        - bash -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then ip addr add 10.0.4.1/24 dev eth3; fi'  # toward client-android
         - ip route replace default via 10.0.2.1
         - bash -c 'dnsmasq --conf-file=/dev/null -C /etc/dnsmasq.conf'
         - nft -f /etc/nftables.conf
@@ -144,7 +144,7 @@ topology:
         - ip route replace default via 10.10.10.1
 
     # ── Android Mobile User (conditional) ────────────────────────────────
-    iran-mobile:
+    client-android:
       kind: linux
       image: redroid/redroid:14.0.0-latest
       labels:
@@ -167,7 +167,7 @@ topology:
       image: shmayro/scrcpy-web:latest
       labels:
         containerlab.env.IRAN_MOBILE: "${IRAN_MOBILE}"
-      cmd: sh -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then sleep 30; adb connect clab-iran-filtering-iran-mobile:5555 && npm start; else exec sleep infinity; fi'
+      cmd: sh -c 'if [ "${IRAN_MOBILE:-false}" = "true" ]; then sleep 30; adb connect clab-iran-filtering-client-android:5555 && npm start; else exec sleep infinity; fi'
       ports:
         - "8000:8000"
 
@@ -183,4 +183,4 @@ topology:
     # [PEERING PLANE] tehran-ix <-> aparat-server (NIN directly connected, bypasses tic-tehran)
     - endpoints: ["tehran-ix:eth3", "aparat-server:eth1"]
     # [mobile subscriber]
-    - endpoints: ["iran-mobile:eth1", "isp-shatel:eth3"]
+    - endpoints: ["client-android:eth1", "isp-shatel:eth3"]

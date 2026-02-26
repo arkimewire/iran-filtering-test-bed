@@ -50,11 +50,11 @@
   - Restores routes after test
 - [x] 4.2 Added test section 28: **Mobile CGNAT**
   - Verifies cgnat table present with masquerade rule
-  - Verifies client-province can reach internet through CGNAT
+  - Verifies client-mobile can reach internet through CGNAT
 - [x] 4.3 Added test section 28: **Mobile CGNAT inbound blocked**
-  - internet-srv pings 10.5.1.2 (client-province subscriber IP) → expected fail
+  - internet-srv pings 10.5.1.2 (client-mobile subscriber IP) → expected fail
 - [x] 4.4 Added test section 29: **East-west domestic reachability**
-  - client-south, client-east, client-west, client-province all tested against aparat-server
+  - client-south, client-east, client-west, client-mobile all tested against aparat-server
 - [ ] 4.5 Run `test.sh` full suite against realistic topology; fix any failures
 - [ ] 4.6 Run `test.sh` full suite against simple topology; confirm no regressions
 

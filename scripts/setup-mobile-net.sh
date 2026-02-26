@@ -1,5 +1,5 @@
 #!/bin/bash
-# Configure eth1 networking for iran-mobile (redroid) container.
+# Configure eth1 networking for client-android (redroid) container.
 # Called by containerlab as a host exec stage after deployment.
 # The overlay APK handles Android-side config (EthernetTracker);
 # this script assigns the IP and policy route from the host namespace.
@@ -7,7 +7,7 @@
 # Must wait for Android's netd to finish initializing policy rules,
 # otherwise netd will overwrite our rule table on startup.
 
-CONTAINER="clab-iran-filtering-iran-mobile"
+CONTAINER="clab-iran-filtering-client-android"
 IP="10.0.4.2/24"
 GW="10.0.4.1"
 TABLE=100
@@ -48,4 +48,4 @@ nsenter -t "$PID" -n ip addr add "$IP" dev eth1 2>/dev/null
 nsenter -t "$PID" -n ip rule add from "${IP%/*}" table $TABLE prio $PRIO 2>/dev/null
 nsenter -t "$PID" -n ip route add default via "$GW" dev eth1 table $TABLE onlink 2>/dev/null
 
-echo "iran-mobile eth1 configured: $IP gw $GW"
+echo "client-android eth1 configured: $IP gw $GW"

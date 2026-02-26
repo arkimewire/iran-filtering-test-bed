@@ -159,10 +159,10 @@
       }
     },
     {
-      "id": "client-province",
+      "id": "aparat-server",
       "position": {
-        "x": 1120,
-        "y": 640
+        "x": 300,
+        "y": 180
       },
       "geoCoordinates": {
         "lat": 53.48725,
@@ -332,6 +332,13 @@
       "geoCoordinates": {
         "lat": 50.110924,
         "lng": 11.482127
+      }
+    },
+    {
+      "id": "client-mobile",
+      "position": {
+        "x": 1100,
+        "y": 640
       }
     }
   ],
